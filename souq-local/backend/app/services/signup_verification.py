@@ -86,11 +86,21 @@ async def send_signup_otp(
 
     destination = normalized_email if channel == "email" else normalized_phone
     if channel == "email":
-        email_service.queue_signup_otp(
+        delivery = await email_service.send_signup_otp_async(
             to=normalized_email,
             code=code,
             expires_minutes=10,
         )
+        if not delivery.get("delivered") and delivery.get("mode") != "log":
+            logger.error(
+                "signup_email_otp_failed to=%s delivery=%s",
+                normalized_email,
+                delivery,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to send verification email. Please try again later.",
+            )
     else:
         logger.info(
             "signup_sms_otp to=%s (SMS provider not configured — check API logs on home server)",

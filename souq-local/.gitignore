@@ -46,3 +46,6 @@ backups/
 .env.production
 .env.prod
 .env.staging
+infra/onprem/docker-compose.tailscale-private.yml
+infra/onprem/docker-compose.tailscale.yml
+infra/onprem/nginx/nginx.tailscale.conf
