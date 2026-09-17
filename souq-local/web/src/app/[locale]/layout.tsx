@@ -2,6 +2,7 @@ import { Inter, Noto_Sans_Arabic } from "next/font/google";
 import { notFound } from "next/navigation";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, setRequestLocale } from "next-intl/server";
+import { FullPageAdHost } from "@/components/full-page-ad-interstitial";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { localeDirection } from "@/i18n/locale";
@@ -49,6 +50,7 @@ export default async function LocaleLayout({
             {children}
           </main>
           <SiteFooter />
+          <FullPageAdHost />
         </NextIntlClientProvider>
       </body>
     </html>

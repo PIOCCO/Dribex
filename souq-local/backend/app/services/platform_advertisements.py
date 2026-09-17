@@ -58,6 +58,13 @@ AD_PLACEMENT_LABELS: dict[str, str] = {
 
 AD_TARGET_PLATFORMS: tuple[str, ...] = ("all", "web", "mobile")
 AD_TARGET_LISTING_TYPES: tuple[str, ...] = ("all", "product", "service")
+AD_CLOSE_DELAY_SECONDS: tuple[int, ...] = (5, 10, 20)
+
+
+def validate_close_delay_seconds(value: int) -> int:
+    if value not in AD_CLOSE_DELAY_SECONDS:
+        raise ValueError("close_delay_seconds must be one of: 5, 10, 20")
+    return value
 
 VALID_STATUS_TRANSITIONS: dict[PlatformAdCampaignStatus, set[PlatformAdCampaignStatus]] = {
     PlatformAdCampaignStatus.DRAFT: {
@@ -205,6 +212,7 @@ def _matches_targeting(
     city: str | None,
     category_slug: str | None,
     listing_type: str | None,
+    marketplace_slug: str | None,
     platform: str,
 ) -> bool:
     if campaign.target_city:
@@ -216,10 +224,42 @@ def _matches_targeting(
     if campaign.target_listing_type:
         if not listing_type or campaign.target_listing_type.lower() != listing_type.strip().lower():
             return False
+    campaign_marketplace = normalize_optional_slug(campaign.target_marketplace_slug)
+    request_marketplace = normalize_optional_slug(marketplace_slug)
+    if campaign_marketplace:
+        if not request_marketplace or campaign_marketplace != request_marketplace:
+            return False
     target_platform = (campaign.target_platform or "all").lower()
     if target_platform != "all" and target_platform != platform.lower():
         return False
     return True
+
+
+def _marketplace_ad_pool(
+    eligible: list[PlatformAdvertisement],
+    *,
+    marketplace_slug: str | None,
+) -> list[PlatformAdvertisement]:
+    """Prefer marketplace-specific campaigns, then general (no marketplace target)."""
+    request_marketplace = normalize_optional_slug(marketplace_slug)
+    if not request_marketplace:
+        return [
+            campaign
+            for campaign in eligible
+            if not normalize_optional_slug(campaign.target_marketplace_slug)
+        ]
+    specific = [
+        campaign
+        for campaign in eligible
+        if normalize_optional_slug(campaign.target_marketplace_slug) == request_marketplace
+    ]
+    if specific:
+        return specific
+    return [
+        campaign
+        for campaign in eligible
+        if not normalize_optional_slug(campaign.target_marketplace_slug)
+    ]
 
 
 def _is_eligible_for_display(
@@ -229,6 +269,7 @@ def _is_eligible_for_display(
     city: str | None,
     category_slug: str | None,
     listing_type: str | None,
+    marketplace_slug: str | None,
     platform: str,
     now: datetime,
 ) -> bool:
@@ -252,6 +293,7 @@ def _is_eligible_for_display(
         city=city,
         category_slug=category_slug,
         listing_type=listing_type,
+        marketplace_slug=marketplace_slug,
         platform=platform,
     ):
         return False
@@ -342,9 +384,11 @@ async def list_active_advertisements(
     city: str | None = None,
     category_slug: str | None = None,
     listing_type: str | None = None,
+    marketplace_slug: str | None = None,
     platform: str = "web",
     viewer_key: str | None = None,
     limit: int = 1,
+    exclude_campaign_ids: set[UUID] | None = None,
 ) -> list[PlatformAdvertisement]:
     if not settings.ads_enabled:
         return []
@@ -377,6 +421,7 @@ async def list_active_advertisements(
             city=city,
             category_slug=category_slug,
             listing_type=listing_type,
+            marketplace_slug=marketplace_slug,
             platform=platform,
             now=now,
         )
@@ -387,6 +432,9 @@ async def list_active_advertisements(
         if await _passes_user_frequency(session, campaign, viewer_key=hashed_viewer, now=now):
             eligible.append(campaign)
 
+    eligible = _marketplace_ad_pool(eligible, marketplace_slug=marketplace_slug)
+    if exclude_campaign_ids:
+        eligible = [row for row in eligible if row.id not in exclude_campaign_ids]
     if not eligible:
         return []
 
@@ -434,6 +482,7 @@ async def record_impression(
         city=None,
         category_slug=None,
         listing_type=None,
+        marketplace_slug=campaign.target_marketplace_slug,
         platform=platform,
         now=now,
     ):
@@ -492,6 +541,7 @@ async def record_click(
         city=None,
         category_slug=None,
         listing_type=None,
+        marketplace_slug=campaign.target_marketplace_slug,
         platform=platform,
         now=now,
     ):
