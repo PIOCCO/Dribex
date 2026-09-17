@@ -117,4 +117,10 @@ async def click_advertisement(
     await session.commit()
     if campaign is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Advertisement not found")
-    return RedirectResponse(url=campaign.target_url, status_code=status.HTTP_302_FOUND)
+    destination = (campaign.target_url or "").strip()
+    if not destination:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="This advertisement has no destination link",
+        )
+    return RedirectResponse(url=destination, status_code=status.HTTP_302_FOUND)

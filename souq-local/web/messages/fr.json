@@ -309,6 +309,11 @@
   },
   "ads": {
     "label": "Publicité",
-    "ariaLabel": "Publicité"
+    "ariaLabel": "Publicité",
+    "fullPageAriaLabel": "Publicité plein écran",
+    "close": "Fermer",
+    "mute": "Couper le son",
+    "unmute": "Activer le son",
+    "openDestination": "Ouvrir le lien de la publicité"
   }
 }
