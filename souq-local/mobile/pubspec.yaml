@@ -25,7 +25,7 @@ dependencies:
   geolocator: ^13.0.2
   shared_preferences: ^2.3.3
   image_picker: ^1.1.2
-  camera: ^0.11.1
+  camera: ^0.12.1
   video_player: ^2.9.5
   flutter_secure_storage: ^9.2.4
   qr_flutter: ^4.1.0
