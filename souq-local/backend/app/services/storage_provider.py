@@ -22,6 +22,7 @@ class StoragePurpose(str, Enum):
     VIDEO = "video"
     PRIVATE = "private"
     GENERAL = "general"
+    ADVERTISEMENT = "advertisement"
 
 
 @dataclass(frozen=True)
@@ -90,6 +91,7 @@ def purpose_prefix(purpose: StoragePurpose) -> str:
         StoragePurpose.VIDEO: "videos",
         StoragePurpose.PRIVATE: "private",
         StoragePurpose.GENERAL: "uploads",
+        StoragePurpose.ADVERTISEMENT: "advertisements",
     }[purpose]
 
 
@@ -143,6 +145,7 @@ class MinioStorageProvider(StorageProvider):
             StoragePurpose.VIDEO: settings.minio_bucket_products,
             StoragePurpose.PRIVATE: settings.minio_bucket_private,
             StoragePurpose.GENERAL: settings.minio_bucket_private,
+            StoragePurpose.ADVERTISEMENT: settings.minio_bucket_listings,
         }
         return mapping[purpose]
 
