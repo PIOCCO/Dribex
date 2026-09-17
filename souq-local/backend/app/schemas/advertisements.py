@@ -112,13 +112,13 @@ class AdvertisementOverviewOut(BaseModel):
 
 
 class AdvertisementCreate(BaseModel):
-    advertiser_name: str = Field(min_length=1, max_length=200)
-    campaign_name: str = Field(min_length=1, max_length=200)
+    advertiser_name: str = Field(default="Dribex", max_length=200)
+    campaign_name: str = Field(default="", max_length=200)
     title: str = Field(min_length=1, max_length=120)
     description: str | None = Field(default=None, max_length=2000)
-    image_url: str = Field(min_length=8, max_length=2048)
+    image_url: str = Field(default="", max_length=2048)
     video_url: str | None = Field(default=None, max_length=2048)
-    target_url: str = Field(min_length=8, max_length=2048)
+    target_url: str = Field(default="", max_length=2048)
     contact_info: str = Field(default="", max_length=500)
     placement: str = Field(default="homepage_top")
     starts_at: datetime | None = None
@@ -159,7 +159,10 @@ class AdvertisementCreate(BaseModel):
     @field_validator("image_url")
     @classmethod
     def clean_image_url(cls, value: str) -> str:
-        return validate_ad_url(value, field_name="image_url") or ""
+        cleaned = value.strip()
+        if not cleaned:
+            return ""
+        return validate_ad_url(cleaned, field_name="image_url") or ""
 
     @field_validator("video_url")
     @classmethod
@@ -171,12 +174,26 @@ class AdvertisementCreate(BaseModel):
     @field_validator("target_url")
     @classmethod
     def clean_target_url(cls, value: str) -> str:
-        return validate_ad_url(value, field_name="target_url") or ""
+        cleaned = value.strip()
+        if not cleaned:
+            return ""
+        return validate_ad_url(cleaned, field_name="target_url", required=True) or ""
 
     @model_validator(mode="after")
-    def validate_schedule(self):
+    def validate_schedule_and_media(self):
         if self.starts_at and self.ends_at and self.ends_at <= self.starts_at:
             raise ValueError("ends_at must be after starts_at")
+        title = self.title.strip()
+        if not self.advertiser_name.strip():
+            self.advertiser_name = "Dribex"
+        if not self.campaign_name.strip():
+            self.campaign_name = title
+        has_image = bool(self.image_url.strip())
+        has_video = bool(self.video_url and self.video_url.strip())
+        if not has_image and not has_video:
+            raise ValueError("An image or video URL is required")
+        if not has_image and has_video:
+            self.image_url = self.video_url or ""
         return self
 
 
@@ -250,7 +267,10 @@ class AdvertisementUpdate(BaseModel):
     def clean_target_url(cls, value: str | None) -> str | None:
         if value is None:
             return None
-        return validate_ad_url(value, field_name="target_url")
+        cleaned = value.strip()
+        if not cleaned:
+            return ""
+        return validate_ad_url(cleaned, field_name="target_url", required=True)
 
 
 class ImpressionCreate(BaseModel):

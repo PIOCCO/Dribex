@@ -328,6 +328,20 @@ def test_cors_origins_from_env_accepts_comma_separated_and_malformed_json(monkey
     ]
 
 
+@pytest.mark.no_db
+def test_extra_cors_origins_merge_into_allowlist():
+    settings = Settings(
+        _env_file=None,
+        app_env="development",
+        cors_origins=["https://dribex.ma"],
+        extra_cors_origins="http://100.64.1.2:7215",
+    )
+    assert settings.cors_origins == [
+        "https://dribex.ma",
+        "http://100.64.1.2:7215",
+    ]
+
+
 @pytest.mark.asyncio
 async def test_invalid_token_returns_401_without_firebase(prepare_database):
     from httpx import ASGITransport, AsyncClient

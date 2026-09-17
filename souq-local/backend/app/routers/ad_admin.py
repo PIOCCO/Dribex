@@ -143,6 +143,12 @@ async def create_advertisement(
     admin: User = Depends(require_admin),
     session: AsyncSession = Depends(get_db),
 ) -> PlatformAdvertisement:
+    payment_override = payload.payment_override
+    payment_status = payload.payment_status
+    if payload.status == PlatformAdCampaignStatus.ACTIVE and not payment_override:
+        payment_override = True
+        payment_status = PlatformAdPaymentStatus.PAID
+
     ad = PlatformAdvertisement(
         id=uuid4(),
         advertiser_name=payload.advertiser_name.strip(),
@@ -161,8 +167,8 @@ async def create_advertisement(
         max_impressions=payload.max_impressions,
         max_impressions_per_user_per_day=payload.max_impressions_per_user_per_day,
         min_interval_minutes=payload.min_interval_minutes,
-        payment_status=payload.payment_status,
-        payment_override=payload.payment_override,
+        payment_status=payment_status,
+        payment_override=payment_override,
         internal_notes=payload.internal_notes.strip(),
         target_city=(payload.target_city or "").strip().lower() or None,
         target_category_slug=(payload.target_category_slug or "").strip().lower() or None,
@@ -203,6 +209,9 @@ async def update_advertisement(
             assert_status_transition(ad.status, desired)
         except ValueError as exc:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        if desired == PlatformAdCampaignStatus.ACTIVE and not ad.payment_override:
+            ad.payment_override = True
+            ad.payment_status = PlatformAdPaymentStatus.PAID
         _apply_status_side_effects(ad, desired)
 
     for key, value in updates.items():

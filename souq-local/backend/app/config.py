@@ -147,6 +147,8 @@ class Settings(BaseSettings):
     max_video_upload_bytes: int = 52_428_800
 
     cors_origins: CommaSeparatedList = ["http://localhost:3000"]
+    # Appended to cors_origins after load (e.g. Tailscale admin UI origin from compose overlay).
+    extra_cors_origins: CommaSeparatedList = []
     allowed_hosts: CommaSeparatedList = ["*"]
 
     rate_limit: str = "300/minute"
@@ -353,6 +355,14 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_production_settings(self) -> "Settings":
+        if self.extra_cors_origins:
+            merged = list(self.cors_origins)
+            for origin in self.extra_cors_origins:
+                cleaned = origin.strip().rstrip("/")
+                if cleaned and cleaned not in merged:
+                    merged.append(cleaned)
+            object.__setattr__(self, "cors_origins", merged)
+
         if not self.mfa_encryption_key:
             object.__setattr__(self, "mfa_encryption_key", self.jwt_secret_key)
         if not self.rewarded_ad_signing_secret:
