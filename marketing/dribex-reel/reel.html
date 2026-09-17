@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1080, height=1920" />
+  <title>Dribex Reel</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 1080px;
+      height: 1920px;
+      overflow: hidden;
+      font-family: "Noto Sans Arabic", "Noto Naskh Arabic", system-ui, sans-serif;
+      background: #0a1628;
+    }
+    html.render-mode *, html.render-mode *::before, html.render-mode *::after {
+      transition: none !important;
+      animation: none !important;
+    }
+    #stage {
+      position: relative;
+      width: 1080px;
+      height: 1920px;
+      overflow: hidden;
+    }
+    .scene {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s ease;
+    }
+    .scene.active { opacity: 1; }
+    .bg {
+      position: absolute;
+      inset: 0;
+      background-size: cover;
+      background-position: center;
+      transform: scale(1.08);
+    }
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(10,22,40,0.35) 0%, rgba(10,22,40,0.75) 55%, rgba(10,22,40,0.92) 100%);
+    }
+    .grain {
+      position: absolute;
+      inset: 0;
+      opacity: 0.08;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+    .headline {
+      position: absolute;
+      left: 48px;
+      right: 48px;
+      text-align: center;
+      color: #fff;
+      font-weight: 700;
+      font-size: 64px;
+      line-height: 1.25;
+      text-shadow: 0 4px 24px rgba(0,0,0,0.45);
+      transform: translateY(20px);
+      opacity: 0;
+    }
+    .headline.show {
+      opacity: 1;
+      transform: translateY(0);
+      transition: opacity 0.4s ease, transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .logo-wrap {
+      position: absolute;
+      left: 50%;
+      top: 42%;
+      transform: translate(-50%, -50%) scale(0.85);
+      opacity: 0;
+      width: 520px;
+      text-align: center;
+    }
+    .logo-wrap.show {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+      transition: opacity 0.45s ease, transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .logo-wrap img { width: 100%; height: auto; filter: drop-shadow(0 12px 40px rgba(0,0,0,0.35)); }
+    .phone {
+      position: absolute;
+      left: 50%;
+      top: 52%;
+      transform: translate(-50%, -50%);
+      width: 420px;
+      height: 860px;
+      border-radius: 44px;
+      background: #111;
+      padding: 14px;
+      box-shadow: 0 40px 80px rgba(0,0,0,0.55), 0 0 0 2px rgba(255,255,255,0.12);
+    }
+    .phone-screen {
+      width: 100%;
+      height: 100%;
+      border-radius: 32px;
+      overflow: hidden;
+      background: #f8f1e9;
+      position: relative;
+    }
+    .app-header {
+      background: #2563eb;
+      color: #fff;
+      padding: 52px 20px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .app-header img { height: 36px; }
+    .app-header span { font-size: 22px; font-weight: 700; letter-spacing: 0.02em; }
+    .app-search {
+      margin: 14px 16px;
+      background: #fff;
+      border-radius: 14px;
+      padding: 14px 16px;
+      color: #64748b;
+      font-size: 18px;
+      box-shadow: 0 2px 8px rgba(37,99,235,0.08);
+    }
+    .chips {
+      display: flex;
+      gap: 8px;
+      padding: 0 16px 12px;
+      overflow: hidden;
+    }
+    .chip {
+      flex-shrink: 0;
+      background: #eff6ff;
+      color: #2563eb;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .feed {
+      padding: 0 16px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transform: translateY(0);
+    }
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 4px 16px rgba(15,23,42,0.08);
+    }
+    .card-img {
+      height: 120px;
+      background: linear-gradient(135deg, #dbeafe, #fef3c7);
+    }
+    .card-body { padding: 12px 14px; }
+    .card-title { font-size: 17px; font-weight: 700; color: #0f172a; text-align: right; }
+    .card-meta { font-size: 14px; color: #64748b; margin-top: 4px; text-align: right; }
+    .card-price { color: #2563eb; font-weight: 700; margin-top: 6px; text-align: right; font-size: 16px; }
+    .contact-sheet {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #fff;
+      border-radius: 24px 24px 0 0;
+      padding: 24px 20px 40px;
+      transform: translateY(100%);
+      box-shadow: 0 -8px 32px rgba(0,0,0,0.12);
+    }
+    .contact-sheet.up { transform: translateY(0); transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1); }
+    .msg-row {
+      background: #eff6ff;
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-top: 12px;
+      text-align: right;
+      color: #1e293b;
+      font-size: 17px;
+    }
+    .btn-primary {
+      margin-top: 16px;
+      background: #2563eb;
+      color: #fff;
+      text-align: center;
+      padding: 16px;
+      border-radius: 14px;
+      font-weight: 700;
+      font-size: 18px;
+    }
+    .final-bg {
+      background: linear-gradient(165deg, #0f172a 0%, #1e3a8a 45%, #2563eb 100%);
+    }
+    .final-text {
+      position: absolute;
+      left: 48px;
+      right: 48px;
+      text-align: center;
+      color: #fff;
+    }
+    .final-title { top: 38%; font-size: 72px; font-weight: 700; }
+    .final-tag { top: 48%; font-size: 52px; font-weight: 600; opacity: 0.95; }
+    .final-cta {
+      bottom: 18%;
+      font-size: 36px;
+      font-weight: 600;
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(8px);
+      padding: 18px 28px;
+      border-radius: 999px;
+      display: inline-block;
+      left: 50%;
+      transform: translateX(-50%);
+      width: max-content;
+      max-width: 90%;
+    }
+    .users-row {
+      position: absolute;
+      bottom: 22%;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      padding: 0 24px;
+    }
+    .user-card {
+      flex: 1;
+      max-width: 200px;
+      background: rgba(255,255,255,0.92);
+      border-radius: 16px;
+      padding: 14px;
+      text-align: center;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    }
+    .user-card .emoji { font-size: 36px; }
+    .user-card p { font-size: 15px; color: #334155; margin-top: 8px; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div id="stage">
+    <!-- Scene 1 Hook -->
+    <div class="scene" id="s1">
+      <div class="bg" style="background-image: url('assets/onboarding_02_discover.png')"></div>
+      <div class="overlay"></div>
+      <div class="grain"></div>
+      <div class="headline" id="h1" style="top: 28%;">كتقلب على شي حاجة؟ 🔎</div>
+      <div class="logo-wrap" id="logo1"><img src="assets/margem_logo.png" alt="Dribex" /></div>
+    </div>
+    <!-- Scene 2 Discover -->
+    <div class="scene" id="s2">
+      <div class="bg" style="background-image: url('assets/onboarding_skyline.png'); filter: brightness(0.95);"></div>
+      <div class="overlay" style="background: linear-gradient(180deg, rgba(248,241,233,0.2), rgba(10,22,40,0.85));"></div>
+      <div class="headline" id="h2" style="top: 8%;">لقاها فـ Dribex.</div>
+      <div class="phone" id="phone2">
+        <div class="phone-screen">
+          <div class="app-header">
+            <img src="assets/margem_logo_icon.png" alt="" />
+            <span>Dribex</span>
+          </div>
+          <div class="app-search">🔎 شنو بغيتي تلقى؟</div>
+          <div class="chips">
+            <span class="chip">منتوجات</span>
+            <span class="chip">خدمات</span>
+            <span class="chip">قراب ليا</span>
+          </div>
+          <div class="feed" id="feed">
+            <div class="card"><div class="card-img"></div><div class="card-body"><div class="card-title">زيت أرگان طبيعي</div><div class="card-meta">📍 Casablanca</div><div class="card-price">120 MAD</div></div></div>
+            <div class="card"><div class="card-img" style="background:linear-gradient(135deg,#fce7f3,#dbeafe)"></div><div class="card-body"><div class="card-title">تصليح إلكترونique</div><div class="card-meta">⭐ بائع محلي</div><div class="card-price">من 80 MAD</div></div></div>
+            <div class="card"><div class="card-img" style="background:linear-gradient(135deg,#d1fae5,#fef9c3)"></div><div class="card-body"><div class="card-title">قفطان عصري</div><div class="card-meta">🇲🇦 صنع محلي</div><div class="card-price">450 MAD</div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Scene 3 Local -->
+    <div class="scene" id="s3">
+      <div class="bg" style="background-image: url('assets/onboarding_03_connect.png')"></div>
+      <div class="overlay"></div>
+      <div class="headline" id="h3" style="top: 10%;">منتوجات وخدمات من عند الناس اللي قراب ليك 🇲🇦</div>
+      <div class="users-row" id="users">
+        <div class="user-card"><div class="emoji">🛍️</div><p>منتوجات</p></div>
+        <div class="user-card"><div class="emoji">🔧</div><p>خدمات</p></div>
+        <div class="user-card"><div class="emoji">🏪</div><p>بائعين</p></div>
+      </div>
+      <div class="phone" style="top: 58%; width: 360px; height: 740px; opacity: 0.95;">
+        <div class="phone-screen">
+          <div class="app-header"><img src="assets/margem_logo_icon.png" alt="" /><span>Dribex</span></div>
+          <div class="feed" style="padding-top:16px">
+            <div class="card"><div class="card-img"></div><div class="card-body"><div class="card-title">حلويات منزلية</div><div class="card-meta">2 km · Maarif</div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Scene 4 Contact -->
+    <div class="scene" id="s4">
+      <div class="bg" style="background: #f8f1e9;"></div>
+      <div class="headline" id="h4" style="top: 8%; color:#0f172a; text-shadow:none;">عجباتك؟ تواصل مباشرة.</div>
+      <div class="phone" id="phone4" style="top: 54%;">
+        <div class="phone-screen">
+          <div class="app-header"><img src="assets/margem_logo_icon.png" alt="" /><span>Dribex</span></div>
+          <div class="card" style="margin:16px"><div class="card-img" style="height:160px"></div><div class="card-body"><div class="card-title">زيت أرگان طبيعي</div><div class="card-price">120 MAD</div></div></div>
+          <div class="contact-sheet" id="sheet">
+            <div style="font-weight:700;font-size:18px;text-align:right;color:#0f172a">راسل البائع</div>
+            <div class="msg-row">سلام! واش المنتوج disponible?</div>
+            <div class="btn-primary">إرسال الرسالة</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Scene 5 Final -->
+    <div class="scene" id="s5">
+      <div class="bg final-bg"></div>
+      <div class="grain"></div>
+      <div class="logo-wrap" id="logo5" style="top: 32%;"><img src="assets/margem_logo.png" alt="Dribex" /></div>
+      <div class="final-text final-title" id="ft1">Dribex 🇲🇦</div>
+      <div class="final-text final-tag" id="ft2">قلب. لقا. تواصل.</div>
+      <div class="final-text final-cta" id="ft3">جرب Dribex دابا.</div>
+    </div>
+  </div>
+  <script>
+    const DURATION = 20;
+    const scenes = [
+      { id: 's1', start: 0, end: 3, onEnter: (t) => {
+        setActive('s1');
+        toggle('h1', t > 0.2);
+        toggle('logo1', t > 1.4);
+      }},
+      { id: 's2', start: 3, end: 7, onEnter: (t) => {
+        setActive('s2');
+        toggle('h2', t > 0.15);
+        const feed = document.getElementById('feed');
+        const scroll = Math.min(1, Math.max(0, (t - 0.5) / 2.5)) * 120;
+        feed.style.transform = `translateY(-${scroll}px)`;
+      }},
+      { id: 's3', start: 7, end: 11, onEnter: (t) => {
+        setActive('s3');
+        toggle('h3', t > 0.1);
+      }},
+      { id: 's4', start: 11, end: 15, onEnter: (t) => {
+        setActive('s4');
+        toggle('h4', t > 0.1);
+        document.getElementById('sheet').classList.toggle('up', t > 0.8);
+      }},
+      { id: 's5', start: 15, end: 20, onEnter: (t) => {
+        setActive('s5');
+        toggle('logo5', t > 0.2);
+        document.getElementById('ft1').style.opacity = t > 0.6 ? 1 : 0;
+        document.getElementById('ft2').style.opacity = t > 1.2 ? 1 : 0;
+        document.getElementById('ft3').style.opacity = t > 2 ? 1 : 0;
+      }},
+    ];
+
+    function setActive(id) {
+      document.querySelectorAll('.scene').forEach((el) => el.classList.toggle('active', el.id === id));
+    }
+    function toggle(id, on) {
+      const el = document.getElementById(id);
+      if (el) el.classList.toggle('show', on);
+    }
+
+    function resetSceneState() {
+      document.querySelectorAll('.scene').forEach((el) => el.classList.remove('active'));
+      ['h1','h2','h3','h4','logo1','logo5'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('show');
+      });
+      const feed = document.getElementById('feed');
+      if (feed) feed.style.transform = 'translateY(0)';
+      const sheet = document.getElementById('sheet');
+      if (sheet) sheet.classList.remove('up');
+      ['ft1','ft2','ft3'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.style.opacity = 0;
+      });
+    }
+
+    window.seekTo = function(seconds) {
+      const t = Math.max(0, Math.min(DURATION, seconds));
+      let current = scenes[scenes.length - 1];
+      for (const s of scenes) {
+        if (t >= s.start && t < s.end) current = s;
+      }
+      if (t >= DURATION) current = scenes[scenes.length - 1];
+      resetSceneState();
+      const local = t - current.start;
+      current.onEnter(local);
+    };
+
+    document.documentElement.classList.add('render-mode');
+    window.seekTo(0);
+  </script>
+</body>
+</html>
