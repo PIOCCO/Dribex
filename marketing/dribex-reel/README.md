@@ -18,6 +18,6 @@ CHROME_PATH="$(command -v google-chrome || command -v google-chrome-stable || co
 
 Outputs: `/tmp/dribex-reel/dribex-reel-9x16.mp4` and `recording_demo.mp4`.
 
-Requires `ffmpeg` on PATH. Prebuilt MP4s are not in git; render locally or download from a Cloud Agent run artifacts.
+Requires `ffmpeg` on PATH. A pre-rendered `dribex-reel-9x16.mp4` is included in this folder; re-run `render.mjs` only if you change `reel.html`.
 
 **Note:** `/opt/cursor/artifacts/` exists only on Cursor Cloud Agent VMs, not on your laptop.
