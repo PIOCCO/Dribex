@@ -375,20 +375,106 @@ function containerChecked(day, field) {
   return document.querySelector(`[data-day="${day}"][data-field="${field}"]`)?.checked || false;
 }
 
+const AD_MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+const AD_MAX_VIDEO_BYTES = 52 * 1024 * 1024;
+const AD_ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+const AD_ALLOWED_VIDEO_TYPES = new Set(["video/mp4", "video/quicktime"]);
+
+function _uploadUsesApiProxy(uploadUrl) {
+  const apiOrigin = apiBase();
+  try {
+    const target = new URL(uploadUrl);
+    const api = new URL(apiOrigin);
+    return (
+      target.origin === api.origin &&
+      (target.pathname.startsWith("/uploads/storage/") ||
+        target.pathname.startsWith("/uploads/local/"))
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function putPresignedUpload(file, presign) {
+  const contentType = file.type || "application/octet-stream";
+  const headers = { "Content-Type": contentType };
+  if (_uploadUsesApiProxy(presign.upload_url)) {
+    if (!state.token) {
+      throw new Error("Sign in again to upload files.");
+    }
+    headers.Authorization = `Bearer ${state.token}`;
+  } else {
+    headers["x-ms-blob-type"] = "BlockBlob";
+  }
+  let uploadRes;
+  try {
+    uploadRes = await fetch(presign.upload_url, {
+      method: "PUT",
+      headers,
+      body: file,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message === "Failed to fetch") {
+      throw new Error(
+        "Upload request was blocked or could not reach storage. If you use the Tailscale admin UI, ensure the production API CORS allowlist includes this admin origin and allows PUT.",
+      );
+    }
+    throw error;
+  }
+  if (!uploadRes.ok) {
+    let detail = `Upload failed (${uploadRes.status})`;
+    try {
+      const body = await uploadRes.json();
+      detail = formatApiError(body.detail, detail);
+    } catch {
+      // ignore
+    }
+    throw new Error(detail);
+  }
+}
+
 async function uploadImage(file, targetInput) {
   const presign = await api("/uploads/presign", {
     method: "POST",
     body: JSON.stringify({ filename: file.name, content_type: file.type || "image/jpeg" }),
   });
-  const uploadRes = await fetch(presign.upload_url, {
-    method: "PUT",
-    headers: { "Content-Type": file.type || "image/jpeg", "x-ms-blob-type": "BlockBlob" },
-    body: file,
-  });
-  if (!uploadRes.ok) throw new Error("Image upload failed");
+  await putPresignedUpload(file, presign);
   targetInput.value = presign.public_url;
-  updateAdImagePreview(presign.public_url);
   toast("Image uploaded");
+}
+
+async function uploadAdvertisementMedia(file, form) {
+  const contentType = (file.type || "").toLowerCase();
+  const isVideo = AD_ALLOWED_VIDEO_TYPES.has(contentType);
+  const isImage = AD_ALLOWED_IMAGE_TYPES.has(contentType);
+  if (!isVideo && !isImage) {
+    throw new Error("Use JPEG, PNG, WebP, GIF, or MP4 video.");
+  }
+  if (isImage && file.size > AD_MAX_IMAGE_BYTES) {
+    throw new Error("Image must be 8 MB or smaller.");
+  }
+  if (isVideo && file.size > AD_MAX_VIDEO_BYTES) {
+    throw new Error("Video must be 50 MB or smaller.");
+  }
+  const presign = await api("/uploads/presign", {
+    method: "POST",
+    body: JSON.stringify({
+      filename: file.name,
+      content_type: contentType || (isVideo ? "video/mp4" : "image/jpeg"),
+      purpose: "advertisement",
+    }),
+  });
+  await putPresignedUpload(file, presign);
+  if (isVideo) {
+    form.elements.video_url.value = presign.public_url;
+    form.elements.image_url.value = "";
+  } else {
+    form.elements.image_url.value = presign.public_url;
+    form.elements.video_url.value = "";
+  }
+  updateAdMediaPreview(form);
+  toast(isVideo ? "Video uploaded" : "Image uploaded");
 }
 
 function bindUploadInputs(root) {
@@ -768,102 +854,77 @@ async function ensureAdMarketplacesLoaded() {
   state.adMarketplaces = data.items || [];
 }
 
-async function ensureLaunchCitiesLoaded() {
-  if (state.launchCities.length) return;
-  try {
-    const data = await api("/geography/cities?country=MA");
-    state.launchCities = (data.items || []).map((city) => ({
-      slug: (city.slug || city.name_en || "").toLowerCase(),
-      name: city.name_en || city.slug,
-    }));
-  } catch {
-    state.launchCities = [{ slug: "casablanca", name: "Casablanca" }];
-  }
-}
-
-function normalizeCityValue(value) {
-  return (value || "").trim().toLowerCase();
-}
-
 function populateAdMarketplaceSelect(selectedSlug = "") {
   const select = $("#ad-marketplace-select");
   if (!select) return;
+  const normalized = (selectedSlug || "").trim().toLowerCase();
   select.innerHTML = '<option value="">All marketplaces</option>';
   state.adMarketplaces.forEach((marketplace) => {
     const el = document.createElement("option");
     el.value = marketplace.slug;
     el.textContent = marketplace.name;
-    if (marketplace.slug === selectedSlug) el.selected = true;
+    if (marketplace.slug === normalized) el.selected = true;
     select.appendChild(el);
   });
 }
 
-function populateAdCitySelect(selectedCity = "") {
-  const select = $("#ad-city-select");
-  if (!select) return;
-  const normalized = normalizeCityValue(selectedCity);
-  select.innerHTML = '<option value="">All cities</option>';
-  state.launchCities.forEach((city) => {
-    const el = document.createElement("option");
-    el.value = city.slug;
-    el.textContent = city.name;
-    if (city.slug === normalized) el.selected = true;
-    select.appendChild(el);
-  });
+function marketplaceLabelForAd(ad) {
+  const slug = (ad?.target_marketplace_slug || "").trim().toLowerCase();
+  if (!slug) return "All";
+  const match = state.adMarketplaces.find((item) => item.slug === slug);
+  return match?.name || slug;
 }
 
-async function populateAdCategorySelect(marketplaceSlug = "", selectedSlug = "") {
-  const select = $("#ad-category-select");
-  if (!select) return;
-  select.innerHTML = '<option value="">All categories</option>';
-  if (!marketplaceSlug) {
-    try {
-      const categories = await api("/categories");
-      categories.forEach((category) => {
-        const el = document.createElement("option");
-        el.value = category.slug;
-        el.textContent = category.name_en || category.slug;
-        if (category.slug === selectedSlug) el.selected = true;
-        select.appendChild(el);
-      });
-    } catch {
-      // Global categories are optional when no marketplace is selected.
-    }
-    return;
-  }
-  const marketplace = state.adMarketplaces.find((item) => item.slug === marketplaceSlug);
-  if (!marketplace) return;
-  const categories = await api(
-    `/admin/marketplaces/${marketplace.id}/categories?include_hidden=false`,
-  );
-  categories.forEach((category) => {
-    const el = document.createElement("option");
-    el.value = category.slug;
-    el.textContent = category.name;
-    if (category.slug === selectedSlug) el.selected = true;
-    select.appendChild(el);
-  });
+function defaultAdEndDatetimeLocal() {
+  const end = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  return toDatetimeLocalValue(end.toISOString());
 }
 
-function inferMarketplaceSlugForAd(ad) {
-  if (!ad?.target_city) return "";
-  const city = normalizeCityValue(ad.target_city);
-  const matches = state.adMarketplaces.filter((item) => normalizeCityValue(item.city) === city);
-  if (matches.length === 1) return matches[0].slug;
-  return "";
+function setAdStartsNow(form) {
+  form.elements.starts_at.value = toDatetimeLocalValue(new Date().toISOString());
 }
 
-function updateAdImagePreview(url) {
-  const preview = $("#ad-image-preview");
+function clearAdMediaPreview() {
+  const preview = $("#ad-media-preview");
   if (!preview) return;
-  const cleaned = (url || "").trim();
-  if (!cleaned) {
-    preview.innerHTML = "";
-    preview.classList.add("hidden");
+  preview.innerHTML = "";
+  preview.classList.add("hidden");
+}
+
+function updateAdMediaPreview(form) {
+  const preview = $("#ad-media-preview");
+  if (!preview || !form) return;
+  const imageUrl = (form.elements.image_url.value || "").trim();
+  const videoUrl = (form.elements.video_url.value || "").trim();
+  if (!imageUrl && !videoUrl) {
+    clearAdMediaPreview();
     return;
   }
   preview.classList.remove("hidden");
-  preview.innerHTML = `<img src="${escapeHtml(cleaned)}" alt="Advertisement preview" class="preview-image" />`;
+  if (videoUrl) {
+    preview.innerHTML = `<video src="${escapeHtml(videoUrl)}" class="preview-video" controls playsinline></video>`;
+  } else {
+    preview.innerHTML = `<img src="${escapeHtml(imageUrl)}" alt="Ad preview" class="preview-image" />`;
+  }
+}
+
+function applyAdMediaUrl(form) {
+  const raw = ($("#ad-media-url")?.value || "").trim();
+  if (!raw) {
+    toast("Enter a media URL", true);
+    return;
+  }
+  const lower = raw.toLowerCase();
+  const looksVideo = /\.(mp4|mov)(\?|$)/i.test(raw) || lower.includes("video");
+  if (looksVideo) {
+    form.elements.video_url.value = raw;
+    form.elements.image_url.value = "";
+  } else {
+    form.elements.image_url.value = raw;
+    form.elements.video_url.value = "";
+  }
+  updateAdMediaPreview(form);
+  toast("Media URL applied");
 }
 
 function toDatetimeLocalValue(value) {
@@ -906,6 +967,7 @@ function renderAdvertisingOverview() {
 
 async function loadAdvertisements() {
   await loadAdvertisementMeta();
+  await ensureAdMarketplacesLoaded();
   const [rows, overview] = await Promise.all([
     api("/admin/advertisements"),
     api("/admin/advertisements/overview"),
@@ -923,15 +985,6 @@ function formatImpressions(ad) {
   return String(ad.impression_count || 0);
 }
 
-function formatAdTargeting(ad) {
-  const parts = [];
-  if (ad.target_city) parts.push(ad.target_city);
-  if (ad.target_category_slug) parts.push(ad.target_category_slug);
-  if (ad.target_listing_type) parts.push(ad.target_listing_type);
-  if (ad.target_platform && ad.target_platform !== "all") parts.push(ad.target_platform);
-  return parts.length ? parts.join(" · ") : "All";
-}
-
 function renderAdvertisements() {
   const tbody = $("#advertisements-tbody");
   const empty = $("#advertisements-empty");
@@ -946,16 +999,12 @@ function renderAdvertisements() {
   );
   state.advertisements.forEach((ad) => {
     const tr = document.createElement("tr");
+    const statusLabel = ad.status === "active" ? "active" : ad.status || "—";
     tr.innerHTML = `
-      <td>
-        <strong>${escapeHtml(ad.campaign_name || ad.title)}</strong>
-        <div class="muted">${escapeHtml(ad.title)}</div>
-      </td>
-      <td>${escapeHtml(ad.advertiser_name || "—")}</td>
+      <td><strong>${escapeHtml(ad.title)}</strong></td>
       <td>${escapeHtml(placementLabels[ad.placement] || ad.placement || "—")}</td>
-      <td class="muted">${escapeHtml(formatAdTargeting(ad))}</td>
-      <td><span class="pill ${ad.status === "active" ? "active" : "hidden-stat"}">${escapeHtml(ad.status || "—")}</span></td>
-      <td>${escapeHtml(ad.payment_status || "—")}</td>
+      <td>${escapeHtml(marketplaceLabelForAd(ad))}</td>
+      <td><span class="pill ${ad.status === "active" ? "active" : "hidden-stat"}">${escapeHtml(statusLabel)}</span></td>
       <td>${escapeHtml(formatDate(ad.starts_at))}</td>
       <td>${escapeHtml(formatDate(ad.ends_at))}</td>
       <td>${escapeHtml(formatImpressions(ad))}</td>
@@ -972,102 +1021,106 @@ function renderAdvertisements() {
   });
 }
 
-function openAdvertisementDialog(ad = null) {
+function normalizeAdFormStatus(status) {
+  if (status === "active") return "active";
+  return "paused";
+}
+
+async function openAdvertisementDialog(ad = null) {
   const dialog = $("#advertisement-dialog");
   const form = $("#advertisement-form");
   state.editingAdvertisementId = ad?.id || null;
-  $("#advertisement-dialog-title").textContent = ad ? "Edit campaign" : "New campaign";
+  const isEdit = Boolean(ad);
+  $("#advertisement-dialog-title").textContent = isEdit ? "Edit ad" : "Create ad";
+  $("#ad-submit-btn").textContent = isEdit ? "Save changes" : "Publish";
   populatePlacementSelect(ad?.placement || "homepage_top");
-  void Promise.all([ensureAdMarketplacesLoaded(), ensureLaunchCitiesLoaded()])
-    .then(async () => {
-      const marketplaceSlug = inferMarketplaceSlugForAd(ad);
-      populateAdMarketplaceSelect(marketplaceSlug);
-      populateAdCitySelect(ad?.target_city || "");
-      await populateAdCategorySelect(marketplaceSlug, ad?.target_category_slug || "");
-    })
-    .catch((err) => toast(err.message, true));
-  form.elements.advertiser_name.value = ad?.advertiser_name || "";
-  form.elements.campaign_name.value = ad?.campaign_name || "";
+  await ensureAdMarketplacesLoaded();
+  populateAdMarketplaceSelect(ad?.target_marketplace_slug || "");
+
+  form.reset();
   form.elements.title.value = ad?.title || "";
-  form.elements.description.value = ad?.description || "";
   form.elements.image_url.value = ad?.image_url || "";
   form.elements.video_url.value = ad?.video_url || "";
   form.elements.target_url.value = ad?.target_url || "";
-  form.elements.contact_info.value = ad?.contact_info || "";
   form.elements.placement.value = ad?.placement || "homepage_top";
-  form.elements.starts_at.value = toDatetimeLocalValue(ad?.starts_at);
-  form.elements.ends_at.value = toDatetimeLocalValue(ad?.ends_at);
-  form.elements.status.value = ad?.status || "draft";
-  form.elements.payment_status.value = ad?.payment_status || "pending";
-  form.elements.priority.value = ad?.priority ?? 5;
-  form.elements.max_impressions.value = ad?.max_impressions ?? "";
-  form.elements.max_impressions_per_user_per_day.value = ad?.max_impressions_per_user_per_day ?? "";
-  form.elements.min_interval_minutes.value = ad?.min_interval_minutes ?? "";
-  if (form.elements.target_city) {
-    form.elements.target_city.value = normalizeCityValue(ad?.target_city || "");
+  if (form.elements.target_marketplace_slug) {
+    form.elements.target_marketplace_slug.value = ad?.target_marketplace_slug || "";
   }
-  if (form.elements.target_category_slug) {
-    form.elements.target_category_slug.value = ad?.target_category_slug || "";
-  }
-  form.elements.target_listing_type.value = ad?.target_listing_type || "";
-  form.elements.target_platform.value = ad?.target_platform || "all";
-  form.elements.payment_override.checked = Boolean(ad?.payment_override);
-  form.elements.internal_notes.value = ad?.internal_notes || "";
-  updateAdImagePreview(ad?.image_url || "");
-  bindUploadInputs(dialog);
+  populateAdMarketplaceSelect(ad?.target_marketplace_slug || "");
+  form.elements.starts_at.value = ad?.starts_at
+    ? toDatetimeLocalValue(ad.starts_at)
+    : toDatetimeLocalValue(new Date().toISOString());
+  form.elements.ends_at.value = ad?.ends_at
+    ? toDatetimeLocalValue(ad.ends_at)
+    : defaultAdEndDatetimeLocal();
+  form.elements.status.value = normalizeAdFormStatus(ad?.status);
+  const mediaUrlField = $("#ad-media-url");
+  if (mediaUrlField) mediaUrlField.value = ad?.video_url || ad?.image_url || "";
+  const fileInput = $("#ad-media-file");
+  if (fileInput) fileInput.value = "";
+  updateAdMediaPreview(form);
   dialog.showModal();
 }
 
-function buildAdvertisementPayload(form) {
+function buildAdvertisementPayload(form, { isCreate }) {
+  const title = form.elements.title.value.trim();
+  const imageUrl = form.elements.image_url.value.trim();
+  const videoUrl = form.elements.video_url.value.trim();
+  if (!imageUrl && !videoUrl) {
+    throw new Error("Upload or paste an image or video before publishing.");
+  }
+  const startsAt = fromDatetimeLocalValue(form.elements.starts_at.value);
+  const endsAt = fromDatetimeLocalValue(form.elements.ends_at.value);
+  if (!startsAt || !endsAt) {
+    throw new Error("Start and end date/time are required.");
+  }
+  if (new Date(endsAt) <= new Date(startsAt)) {
+    throw new Error("End must be after start.");
+  }
+
   const payload = {
-    advertiser_name: form.elements.advertiser_name.value.trim(),
-    campaign_name: form.elements.campaign_name.value.trim(),
-    title: form.elements.title.value.trim(),
-    description: form.elements.description.value.trim() || null,
-    image_url: form.elements.image_url.value.trim(),
-    video_url: form.elements.video_url.value.trim() || null,
+    title,
+    image_url: imageUrl,
+    video_url: videoUrl || null,
     target_url: form.elements.target_url.value.trim(),
-    contact_info: form.elements.contact_info.value.trim(),
     placement: form.elements.placement.value,
-    starts_at: fromDatetimeLocalValue(form.elements.starts_at.value),
-    ends_at: fromDatetimeLocalValue(form.elements.ends_at.value),
+    target_marketplace_slug: (form.elements.target_marketplace_slug?.value || "").trim() || null,
+    starts_at: startsAt,
+    ends_at: endsAt,
     status: form.elements.status.value,
-    payment_status: form.elements.payment_status.value,
-    priority: Number(form.elements.priority.value || 5),
-    max_impressions: form.elements.max_impressions.value ? Number(form.elements.max_impressions.value) : null,
-    max_impressions_per_user_per_day: form.elements.max_impressions_per_user_per_day.value
-      ? Number(form.elements.max_impressions_per_user_per_day.value)
-      : null,
-    min_interval_minutes: form.elements.min_interval_minutes.value
-      ? Number(form.elements.min_interval_minutes.value)
-      : null,
-    target_city: form.elements.target_city.value.trim() || null,
-    target_category_slug: form.elements.target_category_slug.value.trim() || null,
-    target_listing_type: form.elements.target_listing_type.value || null,
-    target_platform: form.elements.target_platform.value,
-    payment_override: form.elements.payment_override.checked,
-    internal_notes: form.elements.internal_notes.value.trim(),
   };
+
+  if (isCreate) {
+    Object.assign(payload, {
+      advertiser_name: "Dribex",
+      campaign_name: title,
+      payment_status: "paid",
+      payment_override: true,
+      priority: 5,
+      target_platform: "all",
+    });
+  }
   return payload;
 }
 
 async function saveAdvertisement(event) {
   event.preventDefault();
   const form = event.target;
-  const payload = buildAdvertisementPayload(form);
   try {
+    const isCreate = !state.editingAdvertisementId;
+    const payload = buildAdvertisementPayload(form, { isCreate });
     if (state.editingAdvertisementId) {
       await api(`/admin/advertisements/${state.editingAdvertisementId}`, {
         method: "PATCH",
         body: JSON.stringify(payload),
       });
-      toast("Campaign updated");
+      toast("Ad updated");
     } else {
       await api("/admin/advertisements", {
         method: "POST",
         body: JSON.stringify(payload),
       });
-      toast("Campaign created");
+      toast("Ad published");
     }
     $("#advertisement-dialog").close();
     await loadAdvertisements();
@@ -1079,18 +1132,25 @@ async function saveAdvertisement(event) {
 async function previewAdvertisement(adId) {
   const preview = await api(`/admin/advertisements/${adId}/preview`);
   const body = $("#ad-preview-body");
+  const mediaHtml = preview.video_url
+    ? `<video src="${escapeHtml(preview.video_url)}" class="preview-video" controls playsinline></video>`
+    : preview.image_url
+      ? `<img src="${escapeHtml(preview.image_url)}" alt="${escapeHtml(preview.title)}" class="preview-image" />`
+      : "";
+  const destination = (preview.target_url || "").trim();
   body.innerHTML = `
     <div class="preview-card">
-      ${preview.image_url ? `<img src="${escapeHtml(preview.image_url)}" alt="${escapeHtml(preview.title)}" class="preview-image" />` : ""}
-      ${preview.video_url ? `<p class="muted">Video: ${escapeHtml(preview.video_url)}</p>` : ""}
+      ${mediaHtml}
       <h4>${escapeHtml(preview.title)}</h4>
-      <p>${escapeHtml(preview.description || "")}</p>
       <p><strong>Placement:</strong> ${escapeHtml(preview.placement_label || preview.placement)}</p>
-      <p><strong>Destination:</strong> <a href="${escapeHtml(preview.target_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(preview.target_url)}</a></p>
-      <p><strong>Status:</strong> ${escapeHtml(preview.status)} · <strong>Payment:</strong> ${escapeHtml(preview.payment_status)}</p>
+      <p><strong>Marketplace:</strong> ${escapeHtml(marketplaceLabelForAd(preview))}</p>
+      <p><strong>Destination:</strong> ${
+        destination
+          ? `<a href="${escapeHtml(destination)}" target="_blank" rel="noopener noreferrer">${escapeHtml(destination)}</a>`
+          : "<span class=\"muted\">None (display only)</span>"
+      }</p>
+      <p><strong>Status:</strong> ${escapeHtml(preview.status)}</p>
       <p><strong>Schedule:</strong> ${escapeHtml(formatDate(preview.starts_at))} → ${escapeHtml(formatDate(preview.ends_at))}</p>
-      <p><strong>Targeting:</strong> city=${escapeHtml(preview.target_city || "any")}, category=${escapeHtml(preview.target_category_slug || "any")}, listing=${escapeHtml(preview.target_listing_type || "any")}, platform=${escapeHtml(preview.target_platform || "all")}</p>
-      <p><strong>Frequency:</strong> max ${escapeHtml(String(preview.max_impressions || "∞"))} impressions, ${escapeHtml(String(preview.max_impressions_per_user_per_day || "∞"))}/user/day, ${escapeHtml(String(preview.min_interval_minutes || "—"))} min interval</p>
       <p class="muted">Preview does not record impressions.</p>
     </div>
   `;
@@ -1204,19 +1264,24 @@ function bindEvents() {
   $("#marketplace-form").onsubmit = saveMarketplace;
   $("#create-advertisement-btn").onclick = () => openAdvertisementDialog();
   $("#advertisement-form").onsubmit = saveAdvertisement;
-  $("#ad-marketplace-select")?.addEventListener("change", async (event) => {
-    const slug = event.target.value;
-    const marketplace = state.adMarketplaces.find((item) => item.slug === slug);
-    if (marketplace) {
-      const citySelect = $("#ad-city-select");
-      if (citySelect) {
-        citySelect.value = normalizeCityValue(marketplace.city);
-      }
+  $("#ad-media-file")?.addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    const form = $("#advertisement-form");
+    if (!file || !form) return;
+    try {
+      await uploadAdvertisementMedia(file, form);
+    } catch (err) {
+      toast(err.message, true);
+      event.target.value = "";
     }
-    await populateAdCategorySelect(slug, "");
   });
-  $("#advertisement-form [name='image_url']")?.addEventListener("input", (event) => {
-    updateAdImagePreview(event.target.value);
+  $("#ad-media-url-apply")?.addEventListener("click", () => {
+    const form = $("#advertisement-form");
+    if (form) applyAdMediaUrl(form);
+  });
+  $("#ad-starts-now")?.addEventListener("click", () => {
+    const form = $("#advertisement-form");
+    if (form) setAdStartsNow(form);
   });
   $("#advertisements-tbody").onclick = async (event) => {
     const btn = event.target.closest("button[data-ad-action]");

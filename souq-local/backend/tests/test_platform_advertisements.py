@@ -386,6 +386,44 @@ async def test_full_page_impression_and_click_tracking():
 
 
 @pytest.mark.asyncio
+async def test_marketplace_targeting_prefers_specific_campaign():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        headers = await _admin_headers(client)
+        general = await _create_ad(client, headers, campaign_name="General promo")
+        specific = await _create_ad(
+            client,
+            headers,
+            campaign_name="Market A promo",
+            target_marketplace_slug="market-a",
+        )
+        matched = await client.get(
+            "/ads/active",
+            params={"placement": "homepage_top", "marketplace_slug": "market-a"},
+        )
+        assert matched.status_code == 200
+        assert len(matched.json()) == 1
+        assert matched.json()[0]["id"] == specific["id"]
+
+        fallback = await client.get(
+            "/ads/active",
+            params={"placement": "homepage_top", "marketplace_slug": "market-b"},
+        )
+        assert fallback.status_code == 200
+        assert len(fallback.json()) == 1
+        assert fallback.json()[0]["id"] == general["id"]
+
+        without_context = await client.get(
+            "/ads/active",
+            params={"placement": "homepage_top"},
+        )
+        assert without_context.status_code == 200
+        assert len(without_context.json()) == 1
+        assert without_context.json()[0]["id"] == general["id"]
+        assert all(row["id"] != specific["id"] for row in without_context.json())
+
+
+@pytest.mark.asyncio
 async def test_homepage_top_placement_regression_after_full_page_added():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:

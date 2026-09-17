@@ -1493,6 +1493,7 @@ class ApiService {
     String platform = PlatformAdPlacements.mobilePlatform,
     String? city,
     String? categorySlug,
+    String? marketplaceSlug,
     String? listingType,
     bool auth = false,
     int limit = 1,
@@ -1507,6 +1508,9 @@ class ApiService {
     }
     if (categorySlug != null && categorySlug.trim().isNotEmpty) {
       query['category_slug'] = categorySlug.trim();
+    }
+    if (marketplaceSlug != null && marketplaceSlug.trim().isNotEmpty) {
+      query['marketplace_slug'] = marketplaceSlug.trim();
     }
     if (listingType != null && listingType.trim().isNotEmpty) {
       query['listing_type'] = listingType.trim();

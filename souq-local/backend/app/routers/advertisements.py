@@ -44,6 +44,7 @@ async def active_advertisements(
     placement: str = Query(default="homepage_top"),
     city: str | None = Query(default=None, max_length=100),
     category_slug: str | None = Query(default=None, max_length=100),
+    marketplace_slug: str | None = Query(default=None, max_length=120),
     listing_type: str | None = Query(default=None, max_length=20),
     platform: str = Query(default="web", max_length=20),
     limit: int = Query(default=1, ge=1, le=5),
@@ -60,6 +61,7 @@ async def active_advertisements(
         placement=placement,
         city=city,
         category_slug=category_slug,
+        marketplace_slug=marketplace_slug,
         listing_type=listing_type,
         platform=platform,
         viewer_key=viewer_key,
@@ -117,4 +119,10 @@ async def click_advertisement(
     await session.commit()
     if campaign is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Advertisement not found")
-    return RedirectResponse(url=campaign.target_url, status_code=status.HTTP_302_FOUND)
+    destination = (campaign.target_url or "").strip()
+    if not destination:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="This advertisement has no destination link",
+        )
+    return RedirectResponse(url=destination, status_code=status.HTTP_302_FOUND)
