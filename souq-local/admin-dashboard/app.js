@@ -380,17 +380,66 @@ const AD_MAX_VIDEO_BYTES = 52 * 1024 * 1024;
 const AD_ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 const AD_ALLOWED_VIDEO_TYPES = new Set(["video/mp4", "video/quicktime"]);
 
+function _uploadUsesApiProxy(uploadUrl) {
+  const apiOrigin = apiBase();
+  try {
+    const target = new URL(uploadUrl);
+    const api = new URL(apiOrigin);
+    return (
+      target.origin === api.origin &&
+      (target.pathname.startsWith("/uploads/storage/") ||
+        target.pathname.startsWith("/uploads/local/"))
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function putPresignedUpload(file, presign) {
+  const contentType = file.type || "application/octet-stream";
+  const headers = { "Content-Type": contentType };
+  if (_uploadUsesApiProxy(presign.upload_url)) {
+    if (!state.token) {
+      throw new Error("Sign in again to upload files.");
+    }
+    headers.Authorization = `Bearer ${state.token}`;
+  } else {
+    headers["x-ms-blob-type"] = "BlockBlob";
+  }
+  let uploadRes;
+  try {
+    uploadRes = await fetch(presign.upload_url, {
+      method: "PUT",
+      headers,
+      body: file,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message === "Failed to fetch") {
+      throw new Error(
+        "Upload request was blocked or could not reach storage. If you use the Tailscale admin UI, ensure the production API CORS allowlist includes this admin origin and allows PUT.",
+      );
+    }
+    throw error;
+  }
+  if (!uploadRes.ok) {
+    let detail = `Upload failed (${uploadRes.status})`;
+    try {
+      const body = await uploadRes.json();
+      detail = formatApiError(body.detail, detail);
+    } catch {
+      // ignore
+    }
+    throw new Error(detail);
+  }
+}
+
 async function uploadImage(file, targetInput) {
   const presign = await api("/uploads/presign", {
     method: "POST",
     body: JSON.stringify({ filename: file.name, content_type: file.type || "image/jpeg" }),
   });
-  const uploadRes = await fetch(presign.upload_url, {
-    method: "PUT",
-    headers: { "Content-Type": file.type || "image/jpeg", "x-ms-blob-type": "BlockBlob" },
-    body: file,
-  });
-  if (!uploadRes.ok) throw new Error("Image upload failed");
+  await putPresignedUpload(file, presign);
   targetInput.value = presign.public_url;
   toast("Image uploaded");
 }
@@ -416,15 +465,7 @@ async function uploadAdvertisementMedia(file, form) {
       purpose: "advertisement",
     }),
   });
-  const uploadRes = await fetch(presign.upload_url, {
-    method: "PUT",
-    headers: {
-      "Content-Type": contentType || (isVideo ? "video/mp4" : "image/jpeg"),
-      "x-ms-blob-type": "BlockBlob",
-    },
-    body: file,
-  });
-  if (!uploadRes.ok) throw new Error("Media upload failed");
+  await putPresignedUpload(file, presign);
   if (isVideo) {
     form.elements.video_url.value = presign.public_url;
     form.elements.image_url.value = "";
