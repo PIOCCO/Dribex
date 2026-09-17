@@ -43,10 +43,43 @@ def _import_app() -> tuple:
 CASABLANCA_MARKETPLACE_CATALOG, SessionLocal, ensure_casablanca_marketplaces = _import_app()
 
 
+def _database_target_hint() -> str:
+    from urllib.parse import urlparse
+
+    from app.config import settings
+
+    parsed = urlparse(settings.database_url.replace("+asyncpg", ""))
+    host = parsed.hostname or "?"
+    port = parsed.port or 5432
+    db = (parsed.path or "").lstrip("/") or "?"
+    return f"{host}:{port}/{db}"
+
+
+def _print_connection_help(exc: BaseException) -> None:
+    print(
+        f"\nDatabase connection failed ({exc}).\n"
+        f"Configured target: {_database_target_hint()}\n\n"
+        "On production (Postgres is not on localhost), run inside the API container:\n"
+        "  cd ~/MarGem/souq-local/infra/onprem\n"
+        "  docker compose -f docker-compose.prod.yml exec api "
+        "bash -lc 'PYTHONPATH=/app python3 /app/scripts/restore_casablanca_marketplaces.py'\n\n"
+        "If you run from the host with a venv, export DATABASE_URL with a host that "
+        "accepts TCP connections (often 127.0.0.1 only when Postgres publishes a port). "
+        "Load env from the same file as compose, e.g.:\n"
+        "  set -a && source ../infra/onprem/.env.prod && set +a\n"
+        "  export DATABASE_URL=\"postgresql+asyncpg://USER:PASS@127.0.0.1:5432/DB\"\n",
+        file=sys.stderr,
+    )
+
+
 async def main() -> int:
-    async with SessionLocal() as session:
-        created = await ensure_casablanca_marketplaces(session)
-        await session.commit()
+    try:
+        async with SessionLocal() as session:
+            created = await ensure_casablanca_marketplaces(session)
+            await session.commit()
+    except (ConnectionRefusedError, OSError) as exc:
+        _print_connection_help(exc)
+        return 1
     if created:
         print("Created marketplaces:", ", ".join(created))
     else:
