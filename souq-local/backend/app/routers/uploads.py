@@ -33,7 +33,12 @@ _LISTING_VIDEO_DISABLED = "Listing video uploads are not supported."
 
 
 def _reject_listing_video_upload(content_type: str, purpose: StoragePurpose | None = None) -> None:
-    if purpose == StoragePurpose.VIDEO or is_video_content_type(content_type):
+    if purpose == StoragePurpose.VIDEO:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=_LISTING_VIDEO_DISABLED,
+        )
+    if is_video_content_type(content_type) and purpose != StoragePurpose.ADVERTISEMENT:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=_LISTING_VIDEO_DISABLED,

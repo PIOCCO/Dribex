@@ -78,6 +78,7 @@ class _FullPageAdOverlayState extends State<FullPageAdOverlay> {
   }
 
   Future<void> _openAd() async {
+    if (widget.ad.targetUrl.trim().isEmpty) return;
     final clickKey =
         'click-${widget.ad.id}-${DateTime.now().millisecondsSinceEpoch}';
     final url = apiServiceProvider.buildAdClickUrl(
@@ -103,7 +104,7 @@ class _FullPageAdOverlayState extends State<FullPageAdOverlay> {
           children: [
             Positioned.fill(
               child: GestureDetector(
-                onTap: () => _openAd(),
+                onTap: widget.ad.targetUrl.trim().isEmpty ? null : () => _openAd(),
                 child: media,
               ),
             ),
