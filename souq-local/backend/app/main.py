@@ -27,6 +27,7 @@ from app.middleware.request_context import RequestContextMiddleware
 from app.middleware.request_limits import RequestSizeLimitMiddleware
 from app.middleware.security import SecurityHeadersMiddleware
 from app.models import Marketplace, SubscriptionPlan
+from app.services.casablanca_marketplace_seed import ensure_casablanca_marketplaces
 from app.routers import (
     ad_admin,
     admin_moderation,
@@ -114,6 +115,10 @@ async def lifespan(app: FastAPI):
             .where(Marketplace.slug == "9ri3a", Marketplace.name == "9ri3a")
             .values(name="Al Qurayaa")
         )
+        await session.commit()
+
+    async with database.SessionLocal() as session:
+        await ensure_casablanca_marketplaces(session)
         await session.commit()
 
     async with database.SessionLocal() as session:
