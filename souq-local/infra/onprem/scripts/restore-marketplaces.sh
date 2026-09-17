@@ -11,5 +11,18 @@ if [[ ! -f "$ENV_FILE" ]]; then
   exit 1
 fi
 
-"${COMPOSE[@]}" exec -T api \
-  bash -lc 'PYTHONPATH=/app python3 /app/scripts/restore_casablanca_marketplaces.py'
+SQL_FILE="$ROOT/scripts/restore_casablanca_marketplaces.sql"
+if [[ ! -f "$SQL_FILE" ]]; then
+  echo "Missing $SQL_FILE" >&2
+  exit 1
+fi
+
+# shellcheck disable=SC1090
+source "$ENV_FILE"
+
+echo "Restoring marketplaces via Postgres (no API rebuild required)..."
+"${COMPOSE[@]}" exec -T postgres psql \
+  -U "${POSTGRES_USER:-margem}" \
+  -d "${POSTGRES_DB:-margem}" \
+  -v ON_ERROR_STOP=1 \
+  < "$SQL_FILE"
