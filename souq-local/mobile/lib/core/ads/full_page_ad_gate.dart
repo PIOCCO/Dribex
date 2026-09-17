@@ -10,8 +10,9 @@ import '../services/app_storage.dart';
 import 'full_page_ad_overlay.dart';
 import 'full_page_ad_session.dart';
 import 'platform_ad_constants.dart';
+import '../../features/buyer/buyer_home_screen.dart';
 
-/// Shows a full-page mobile ad when the buyer shell loads or the marketplace scope changes.
+/// Shows full-page mobile ads at natural opportunities (marketplace change, return to home tab).
 class FullPageAdGate extends ConsumerStatefulWidget {
   const FullPageAdGate({super.key, required this.child});
 
@@ -35,6 +36,11 @@ class _FullPageAdGateState extends ConsumerState<FullPageAdGate> {
         WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowFullPageAd());
       }
     });
+    ref.listen<int>(buyerTabIndexProvider, (previous, next) {
+      if (previous != null && previous != 0 && next == 0) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowFullPageAd());
+      }
+    });
     return widget.child;
   }
 
@@ -47,7 +53,14 @@ class _FullPageAdGateState extends ConsumerState<FullPageAdGate> {
       marketplaces,
     );
     final contextKey = fullPageAdContextKey(marketplaceSlug);
-    if (ref.read(fullPageAdShownContextKeysProvider).contains(contextKey)) return;
+    final sessions = ref.read(fullPageMarketplaceAdSessionsProvider);
+    final session = sessions[contextKey] ?? const FullPageMarketplaceAdSession();
+
+    final lastDismissed = session.lastDismissedAt;
+    if (lastDismissed != null &&
+        DateTime.now().difference(lastDismissed) < fullPageInterstitialCooldown) {
+      return;
+    }
 
     EntitlementsBundleModel? entitlements;
     try {
@@ -61,8 +74,8 @@ class _FullPageAdGateState extends ConsumerState<FullPageAdGate> {
     if (storage == null) return;
     final adViewerId = storage.ensureAdViewerId();
     final city = ref.read(buyerCityProvider);
-    final session = ref.read(userSessionProvider);
-    final isAuthenticated = session != null && !session.isGuest;
+    final sessionAuth = ref.read(userSessionProvider);
+    final isAuthenticated = sessionAuth != null && !sessionAuth.isGuest;
 
     try {
       final ads = await apiServiceProvider.fetchActiveAds(
@@ -70,6 +83,7 @@ class _FullPageAdGateState extends ConsumerState<FullPageAdGate> {
         adViewerId: adViewerId,
         city: city,
         marketplaceSlug: marketplaceSlug,
+        excludeCampaignIds: session.shownCampaignIds.toList(),
         auth: isAuthenticated,
         limit: 1,
       );
@@ -91,13 +105,16 @@ class _FullPageAdGateState extends ConsumerState<FullPageAdGate> {
       );
 
       if (!mounted) return;
-      ref.read(fullPageAdShownContextKeysProvider.notifier).state = {
-        ...ref.read(fullPageAdShownContextKeysProvider),
-        contextKey,
+      final updatedShown = {...session.shownCampaignIds, ad.id};
+      ref.read(fullPageMarketplaceAdSessionsProvider.notifier).state = {
+        ...ref.read(fullPageMarketplaceAdSessionsProvider),
+        contextKey: session.copyWith(
+          shownCampaignIds: updatedShown,
+          lastDismissedAt: DateTime.now(),
+        ),
       };
     } on Object {
       // Ads must never block buyer navigation.
     }
   }
-
 }

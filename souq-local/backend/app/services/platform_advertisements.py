@@ -58,6 +58,13 @@ AD_PLACEMENT_LABELS: dict[str, str] = {
 
 AD_TARGET_PLATFORMS: tuple[str, ...] = ("all", "web", "mobile")
 AD_TARGET_LISTING_TYPES: tuple[str, ...] = ("all", "product", "service")
+AD_CLOSE_DELAY_SECONDS: tuple[int, ...] = (5, 10, 20)
+
+
+def validate_close_delay_seconds(value: int) -> int:
+    if value not in AD_CLOSE_DELAY_SECONDS:
+        raise ValueError("close_delay_seconds must be one of: 5, 10, 20")
+    return value
 
 VALID_STATUS_TRANSITIONS: dict[PlatformAdCampaignStatus, set[PlatformAdCampaignStatus]] = {
     PlatformAdCampaignStatus.DRAFT: {
@@ -381,6 +388,7 @@ async def list_active_advertisements(
     platform: str = "web",
     viewer_key: str | None = None,
     limit: int = 1,
+    exclude_campaign_ids: set[UUID] | None = None,
 ) -> list[PlatformAdvertisement]:
     if not settings.ads_enabled:
         return []
@@ -425,6 +433,8 @@ async def list_active_advertisements(
             eligible.append(campaign)
 
     eligible = _marketplace_ad_pool(eligible, marketplace_slug=marketplace_slug)
+    if exclude_campaign_ids:
+        eligible = [row for row in eligible if row.id not in exclude_campaign_ids]
     if not eligible:
         return []
 

@@ -175,6 +175,7 @@ async def create_advertisement(
         target_marketplace_slug=(payload.target_marketplace_slug or "").strip().lower() or None,
         target_listing_type=payload.target_listing_type,
         target_platform=payload.target_platform,
+        close_delay_seconds=payload.close_delay_seconds,
         created_by_admin_id=admin.id,
         is_active=payload.status == PlatformAdCampaignStatus.ACTIVE,
     )

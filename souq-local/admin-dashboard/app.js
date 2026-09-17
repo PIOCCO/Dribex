@@ -891,20 +891,41 @@ function clearAdMediaPreview() {
   preview.classList.add("hidden");
 }
 
+function readAdCloseDelaySeconds(form) {
+  const raw = form?.elements?.close_delay_seconds?.value;
+  const parsed = parseInt(String(raw ?? "5"), 10);
+  return [5, 10, 20].includes(parsed) ? parsed : 5;
+}
+
 function updateAdMediaPreview(form) {
   const preview = $("#ad-media-preview");
   if (!preview || !form) return;
   const imageUrl = (form.elements.image_url.value || "").trim();
   const videoUrl = (form.elements.video_url.value || "").trim();
+  const closeDelay = readAdCloseDelaySeconds(form);
+  const placement = (form.elements.placement?.value || "").trim();
+  const isFullPage = placement === "full_page";
   if (!imageUrl && !videoUrl) {
     clearAdMediaPreview();
     return;
   }
   preview.classList.remove("hidden");
-  if (videoUrl) {
-    preview.innerHTML = `<video src="${escapeHtml(videoUrl)}" class="preview-video" controls playsinline></video>`;
+  const mediaHtml = videoUrl
+    ? `<video src="${escapeHtml(videoUrl)}" class="preview-video" controls playsinline></video>`
+    : `<img src="${escapeHtml(imageUrl)}" alt="Ad preview" class="preview-image" />`;
+  const delayNote = `<p class="ad-preview-delay muted">Close available after: ${closeDelay} seconds</p>`;
+  if (isFullPage) {
+    preview.innerHTML = `
+      <div class="ad-interstitial-preview">
+        <div class="ad-interstitial-frame">
+          ${mediaHtml}
+          <span class="ad-interstitial-countdown" aria-hidden="true">${closeDelay}</span>
+        </div>
+        ${delayNote}
+        <p class="muted ad-hint">Full-screen interstitial preview (mobile/web).</p>
+      </div>`;
   } else {
-    preview.innerHTML = `<img src="${escapeHtml(imageUrl)}" alt="Ad preview" class="preview-image" />`;
+    preview.innerHTML = `${mediaHtml}${delayNote}`;
   }
 }
 
@@ -1054,6 +1075,10 @@ async function openAdvertisementDialog(ad = null) {
     ? toDatetimeLocalValue(ad.ends_at)
     : defaultAdEndDatetimeLocal();
   form.elements.status.value = normalizeAdFormStatus(ad?.status);
+  if (form.elements.close_delay_seconds) {
+    const delay = ad?.close_delay_seconds ?? 5;
+    form.elements.close_delay_seconds.value = String([5, 10, 20].includes(delay) ? delay : 5);
+  }
   const mediaUrlField = $("#ad-media-url");
   if (mediaUrlField) mediaUrlField.value = ad?.video_url || ad?.image_url || "";
   const fileInput = $("#ad-media-file");
@@ -1085,6 +1110,7 @@ function buildAdvertisementPayload(form, { isCreate }) {
     target_url: form.elements.target_url.value.trim(),
     placement: form.elements.placement.value,
     target_marketplace_slug: (form.elements.target_marketplace_slug?.value || "").trim() || null,
+    close_delay_seconds: readAdCloseDelaySeconds(form),
     starts_at: startsAt,
     ends_at: endsAt,
     status: form.elements.status.value,
@@ -1138,12 +1164,20 @@ async function previewAdvertisement(adId) {
       ? `<img src="${escapeHtml(preview.image_url)}" alt="${escapeHtml(preview.title)}" class="preview-image" />`
       : "";
   const destination = (preview.target_url || "").trim();
+  const closeDelay = [5, 10, 20].includes(preview.close_delay_seconds)
+    ? preview.close_delay_seconds
+    : 5;
+  const isFullPage = preview.placement === "full_page";
+  const interstitialWrap = isFullPage
+    ? `<div class="ad-interstitial-preview"><div class="ad-interstitial-frame">${mediaHtml}<span class="ad-interstitial-countdown">${closeDelay}</span></div></div>`
+    : mediaHtml;
   body.innerHTML = `
     <div class="preview-card">
-      ${mediaHtml}
+      ${interstitialWrap}
       <h4>${escapeHtml(preview.title)}</h4>
       <p><strong>Placement:</strong> ${escapeHtml(preview.placement_label || preview.placement)}</p>
       <p><strong>Marketplace:</strong> ${escapeHtml(marketplaceLabelForAd(preview))}</p>
+      <p><strong>Close available after:</strong> ${closeDelay} seconds</p>
       <p><strong>Destination:</strong> ${
         destination
           ? `<a href="${escapeHtml(destination)}" target="_blank" rel="noopener noreferrer">${escapeHtml(destination)}</a>`
@@ -1282,6 +1316,14 @@ function bindEvents() {
   $("#ad-starts-now")?.addEventListener("click", () => {
     const form = $("#advertisement-form");
     if (form) setAdStartsNow(form);
+  });
+  $("#ad-placement-select")?.addEventListener("change", () => {
+    const form = $("#advertisement-form");
+    if (form) updateAdMediaPreview(form);
+  });
+  $("#ad-close-delay-select")?.addEventListener("change", () => {
+    const form = $("#advertisement-form");
+    if (form) updateAdMediaPreview(form);
   });
   $("#advertisements-tbody").onclick = async (event) => {
     const btn = event.target.closest("button[data-ad-action]");

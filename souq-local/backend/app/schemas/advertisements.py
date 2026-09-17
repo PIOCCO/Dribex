@@ -16,9 +16,11 @@ from app.services.platform_advertisements import (
     normalize_optional_slug,
     sanitize_ad_title,
     validate_ad_url,
+    validate_close_delay_seconds,
     validate_placement,
     validate_target_listing_type,
     validate_target_platform,
+    AD_CLOSE_DELAY_SECONDS,
 )
 
 
@@ -36,6 +38,7 @@ class AdvertisementPublicOut(BaseModel):
     target_url: str
     placement: str
     click_url: str
+    close_delay_seconds: int = 5
 
     model_config = {"from_attributes": True}
 
@@ -68,6 +71,7 @@ class AdvertisementAdminOut(BaseModel):
     target_marketplace_slug: str | None = None
     target_listing_type: str | None = None
     target_platform: str
+    close_delay_seconds: int = 5
     is_active: bool
     created_at: datetime
     updated_at: datetime
@@ -138,6 +142,7 @@ class AdvertisementCreate(BaseModel):
     target_marketplace_slug: str | None = Field(default=None, max_length=120)
     target_listing_type: str | None = None
     target_platform: str = "all"
+    close_delay_seconds: int = 5
 
     @field_validator("title")
     @classmethod
@@ -158,6 +163,11 @@ class AdvertisementCreate(BaseModel):
     @classmethod
     def clean_target_listing_type(cls, value: str | None) -> str | None:
         return validate_target_listing_type(value)
+
+    @field_validator("close_delay_seconds")
+    @classmethod
+    def clean_close_delay_seconds(cls, value: int) -> int:
+        return validate_close_delay_seconds(value)
 
     @field_validator("target_marketplace_slug")
     @classmethod
@@ -230,6 +240,7 @@ class AdvertisementUpdate(BaseModel):
     target_marketplace_slug: str | None = Field(default=None, max_length=120)
     target_listing_type: str | None = None
     target_platform: str | None = None
+    close_delay_seconds: int | None = None
 
     @field_validator("title")
     @classmethod
@@ -237,6 +248,13 @@ class AdvertisementUpdate(BaseModel):
         if value is None:
             return None
         return sanitize_ad_title(value)
+
+    @field_validator("close_delay_seconds")
+    @classmethod
+    def clean_close_delay_seconds(cls, value: int | None) -> int | None:
+        if value is None:
+            return None
+        return validate_close_delay_seconds(value)
 
     @field_validator("target_marketplace_slug")
     @classmethod
@@ -320,4 +338,5 @@ def placement_meta() -> dict[str, object]:
         "payment_statuses": [status.value for status in PlatformAdPaymentStatus],
         "target_platforms": list(AD_TARGET_PLATFORMS),
         "target_listing_types": list(AD_TARGET_LISTING_TYPES),
+        "close_delay_seconds": list(AD_CLOSE_DELAY_SECONDS),
     }

@@ -1494,6 +1494,7 @@ class ApiService {
     String? city,
     String? categorySlug,
     String? marketplaceSlug,
+    List<String>? excludeCampaignIds,
     String? listingType,
     bool auth = false,
     int limit = 1,
@@ -1511,6 +1512,9 @@ class ApiService {
     }
     if (marketplaceSlug != null && marketplaceSlug.trim().isNotEmpty) {
       query['marketplace_slug'] = marketplaceSlug.trim();
+    }
+    if (excludeCampaignIds != null && excludeCampaignIds.isNotEmpty) {
+      query['exclude_campaign_ids'] = excludeCampaignIds.join(',');
     }
     if (listingType != null && listingType.trim().isNotEmpty) {
       query['listing_type'] = listingType.trim();

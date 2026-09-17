@@ -24,8 +24,6 @@ class FullPageAdOverlay extends StatefulWidget {
   final String adViewerId;
   final String viewKey;
 
-  static const closeDelay = Duration(seconds: 5);
-
   @override
   State<FullPageAdOverlay> createState() => _FullPageAdOverlayState();
 }
@@ -34,7 +32,8 @@ class _FullPageAdOverlayState extends State<FullPageAdOverlay> {
   VideoPlayerController? _videoController;
   var _impressionRecorded = false;
   var _closeAllowed = false;
-  var _secondsUntilClose = FullPageAdOverlay.closeDelay.inSeconds;
+  late int _secondsUntilClose;
+  late Duration _closeDelay;
   var _imageFailed = false;
   var _videoFailed = false;
   var _videoInitializing = false;
@@ -45,13 +44,16 @@ class _FullPageAdOverlayState extends State<FullPageAdOverlay> {
   @override
   void initState() {
     super.initState();
+    final seconds = widget.ad.closeDelaySeconds;
+    _closeDelay = Duration(seconds: seconds);
+    _secondsUntilClose = seconds;
     _recordImpression();
     _startCloseCountdown();
     _initVideoIfNeeded();
   }
 
   void _startCloseCountdown() {
-    _closeTimer = Timer(FullPageAdOverlay.closeDelay, () {
+    _closeTimer = Timer(_closeDelay, () {
       if (!mounted) return;
       setState(() {
         _closeAllowed = true;
@@ -64,7 +66,8 @@ class _FullPageAdOverlayState extends State<FullPageAdOverlay> {
         return;
       }
       setState(() {
-        _secondsUntilClose = (_secondsUntilClose - 1).clamp(0, 5);
+        _secondsUntilClose =
+            (_secondsUntilClose - 1).clamp(0, _closeDelay.inSeconds);
       });
     });
   }

@@ -440,3 +440,67 @@ async def test_homepage_top_placement_regression_after_full_page_added():
         assert public.status_code == 200
         ids = {row["id"] for row in public.json()}
         assert homepage["id"] in ids
+
+
+@pytest.mark.asyncio
+async def test_active_ads_default_close_delay_and_exclude_campaign():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        headers = await _admin_headers(client)
+        first = await _create_ad(
+            client,
+            headers,
+            placement="full_page",
+            target_platform="mobile",
+            campaign_name="Interstitial A",
+        )
+        second = await _create_ad(
+            client,
+            headers,
+            placement="full_page",
+            target_platform="mobile",
+            campaign_name="Interstitial B",
+        )
+        public = await client.get(
+            "/ads/active",
+            params={"placement": "full_page", "platform": "mobile", "limit": 1},
+            headers={"X-Ad-Viewer": "viewer-rotate"},
+        )
+        assert public.status_code == 200
+        assert len(public.json()) == 1
+        assert public.json()[0]["close_delay_seconds"] == 5
+
+        excluded = await client.get(
+            "/ads/active",
+            params={
+                "placement": "full_page",
+                "platform": "mobile",
+                "limit": 1,
+                "exclude_campaign_ids": first["id"],
+            },
+            headers={"X-Ad-Viewer": "viewer-rotate"},
+        )
+        assert excluded.status_code == 200
+        assert len(excluded.json()) == 1
+        assert excluded.json()[0]["id"] == second["id"]
+
+
+@pytest.mark.asyncio
+async def test_admin_create_with_close_delay():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        headers = await _admin_headers(client)
+        created = await _create_ad(
+            client,
+            headers,
+            placement="full_page",
+            close_delay_seconds=20,
+        )
+        assert created["close_delay_seconds"] == 20
+        public = await client.get(
+            "/ads/active",
+            params={"placement": "full_page", "platform": "web", "limit": 1},
+        )
+        assert public.status_code == 200
+        if public.json():
+            assert public.json()[0]["close_delay_seconds"] == 20

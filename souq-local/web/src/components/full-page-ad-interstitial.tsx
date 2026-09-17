@@ -1,16 +1,19 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { getPublicApiBaseUrl } from "@/lib/config";
+import {
+  fullPageAdContextKey,
+  isFullPageAdCooldownActive,
+  readFullPageAdSession,
+  writeFullPageAdSession,
+} from "@/lib/full-page-ad-session";
 import { resolveMediaUrl } from "@/lib/media";
 import { safeExternalHref } from "@/lib/security";
 import type { PlatformAdvertisement } from "@/lib/types";
-
-const CLOSE_DELAY_MS = 5000;
-const SESSION_ATTEMPT_KEY = "dribex-full-page-ad-attempted";
-const SESSION_SHOWN_KEY = "dribex-full-page-ad-shown-ids";
 
 type FullPageAdInterstitialProps = {
   ad: PlatformAdvertisement;
@@ -35,10 +38,28 @@ function generateViewKey(campaignId: string): string {
     : `view-${campaignId}-${Date.now()}`;
 }
 
+function normalizeCloseDelaySeconds(ad: PlatformAdvertisement): number {
+  const raw = ad.close_delay_seconds;
+  if (raw === 10 || raw === 20) return raw;
+  return 5;
+}
+
+function marketplaceSlugFromPathname(pathname: string): string | null {
+  const match = pathname.match(/\/marketplaces\/([^/?#]+)/i);
+  if (!match?.[1]) return null;
+  try {
+    return decodeURIComponent(match[1]).trim().toLowerCase() || null;
+  } catch {
+    return match[1].trim().toLowerCase() || null;
+  }
+}
+
 export function FullPageAdInterstitial({ ad, onClose }: FullPageAdInterstitialProps) {
   const t = useTranslations("ads");
+  const closeDelaySeconds = normalizeCloseDelaySeconds(ad);
+  const closeDelayMs = closeDelaySeconds * 1000;
   const [closeAllowed, setCloseAllowed] = useState(false);
-  const [secondsLeft, setSecondsLeft] = useState(5);
+  const [secondsLeft, setSecondsLeft] = useState(closeDelaySeconds);
   const [mediaFailed, setMediaFailed] = useState(false);
   const [videoMuted, setVideoMuted] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -84,10 +105,12 @@ export function FullPageAdInterstitial({ ad, onClose }: FullPageAdInterstitialPr
   }, [ad.id, viewKey]);
 
   useEffect(() => {
+    setSecondsLeft(closeDelaySeconds);
+    setCloseAllowed(false);
     const closeTimer = window.setTimeout(() => {
       setCloseAllowed(true);
       setSecondsLeft(0);
-    }, CLOSE_DELAY_MS);
+    }, closeDelayMs);
 
     const tick = window.setInterval(() => {
       setSecondsLeft((prev) => (prev > 0 ? prev - 1 : 0));
@@ -97,7 +120,7 @@ export function FullPageAdInterstitial({ ad, onClose }: FullPageAdInterstitialPr
       window.clearTimeout(closeTimer);
       window.clearInterval(tick);
     };
-  }, []);
+  }, [ad.id, closeDelayMs, closeDelaySeconds]);
 
   useEffect(() => {
     if (!mediaFailed) return;
@@ -211,39 +234,70 @@ export function FullPageAdInterstitial({ ad, onClose }: FullPageAdInterstitialPr
 }
 
 export function FullPageAdHost() {
+  const pathname = usePathname();
   const [ad, setAd] = useState<PlatformAdvertisement | null>(null);
+  const fetchGeneration = useRef(0);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (sessionStorage.getItem(SESSION_ATTEMPT_KEY) === "1") return;
-    sessionStorage.setItem(SESSION_ATTEMPT_KEY, "1");
+    if (ad) return;
+
+    const generation = ++fetchGeneration.current;
+    const marketplaceSlug = marketplaceSlugFromPathname(pathname);
+    const contextKey = fullPageAdContextKey(marketplaceSlug);
+    const session = readFullPageAdSession(contextKey);
+    if (isFullPageAdCooldownActive(session)) return;
 
     const viewer = viewerStorageKey();
-    const shownRaw = sessionStorage.getItem(SESSION_SHOWN_KEY);
-    const shownIds = new Set<string>(
-      shownRaw ? (JSON.parse(shownRaw) as string[]) : [],
-    );
+    const exclude = session.shownCampaignIds.join(",");
+    const params = new URLSearchParams({
+      placement: "full_page",
+      platform: "web",
+      limit: "1",
+    });
+    if (marketplaceSlug) {
+      params.set("marketplace_slug", marketplaceSlug);
+    }
+    if (exclude) {
+      params.set("exclude_campaign_ids", exclude);
+    }
 
     void apiFetch<PlatformAdvertisement[]>(
-      `/ads/active?placement=full_page&platform=web&limit=1`,
+      `/ads/active?${params.toString()}`,
       {
         headers: { "X-Ad-Viewer": viewer },
       },
       "client",
     )
       .then((rows) => {
+        if (generation !== fetchGeneration.current) return;
         const candidate = rows[0];
-        if (!candidate || shownIds.has(candidate.id)) return;
-        shownIds.add(candidate.id);
-        sessionStorage.setItem(SESSION_SHOWN_KEY, JSON.stringify([...shownIds]));
+        if (!candidate) return;
         setAd(candidate);
       })
       .catch(() => {
         // Never block the storefront when ads fail.
       });
-  }, []);
+  }, [pathname, ad]);
+
+  const handleClose = useCallback(() => {
+    if (!ad) {
+      setAd(null);
+      return;
+    }
+    const marketplaceSlug = marketplaceSlugFromPathname(pathname);
+    const contextKey = fullPageAdContextKey(marketplaceSlug);
+    const session = readFullPageAdSession(contextKey);
+    const shown = new Set(session.shownCampaignIds);
+    shown.add(ad.id);
+    writeFullPageAdSession(contextKey, {
+      shownCampaignIds: [...shown],
+      lastDismissedAt: Date.now(),
+    });
+    setAd(null);
+  }, [ad, pathname]);
 
   if (!ad) return null;
 
-  return <FullPageAdInterstitial ad={ad} onClose={() => setAd(null)} />;
+  return <FullPageAdInterstitial ad={ad} onClose={handleClose} />;
 }

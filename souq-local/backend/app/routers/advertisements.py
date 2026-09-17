@@ -36,7 +36,23 @@ def _to_public_out(ad, *, placement: str) -> AdvertisementPublicOut:
         target_url=ad.target_url,
         placement=ad.placement,
         click_url=_public_click_url(ad.id, placement),
+        close_delay_seconds=getattr(ad, "close_delay_seconds", 5) or 5,
     )
+
+
+def _parse_exclude_campaign_ids(raw: str | None) -> set[UUID]:
+    if not raw or not raw.strip():
+        return set()
+    parsed: set[UUID] = set()
+    for part in raw.split(","):
+        token = part.strip()
+        if not token:
+            continue
+        try:
+            parsed.add(UUID(token))
+        except ValueError:
+            continue
+    return parsed
 
 
 @router.get("/active", response_model=list[AdvertisementPublicOut])
@@ -48,6 +64,7 @@ async def active_advertisements(
     listing_type: str | None = Query(default=None, max_length=20),
     platform: str = Query(default="web", max_length=20),
     limit: int = Query(default=1, ge=1, le=5),
+    exclude_campaign_ids: str | None = Query(default=None, max_length=2048),
     viewer_key: str | None = Header(default=None, alias="X-Ad-Viewer"),
     user: User | None = Depends(get_current_user_optional),
     session: AsyncSession = Depends(get_db),
@@ -66,6 +83,7 @@ async def active_advertisements(
         platform=platform,
         viewer_key=viewer_key,
         limit=limit,
+        exclude_campaign_ids=_parse_exclude_campaign_ids(exclude_campaign_ids),
     )
     return [_to_public_out(ad, placement=placement) for ad in ads]
 
