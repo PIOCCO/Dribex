@@ -4,8 +4,13 @@ import { SellerCard } from "@/components/listing-cards";
 import { EmptyState, ErrorState } from "@/components/states";
 import { Link } from "@/i18n/navigation";
 import { ApiError } from "@/lib/api";
+import { AdvertisementBanner } from "@/components/advertisement-banner";
 import { describeFetchErrorMessage } from "@/lib/i18n-errors";
-import { loadMarketplace, loadMarketplaceSellers } from "@/lib/marketplace-fetch";
+import {
+  loadActiveAdvertisements,
+  loadMarketplace,
+  loadMarketplaceSellers,
+} from "@/lib/marketplace-fetch";
 import { buildPageMetadata } from "@/lib/seo";
 
 type MarketplaceDetailProps = {
@@ -40,7 +45,10 @@ export default async function MarketplaceDetailPage({ params }: MarketplaceDetai
   const tErrors = await getTranslations("errors");
   const tFormat = await getTranslations("format");
 
-  const marketplaceOutcome = await loadMarketplace(slug);
+  const [marketplaceOutcome, marketplaceAds] = await Promise.all([
+    loadMarketplace(slug),
+    loadActiveAdvertisements("search_results", { marketplaceSlug: slug }),
+  ]);
   if (!marketplaceOutcome.ok) {
     if (marketplaceOutcome.error instanceof ApiError && marketplaceOutcome.error.status === 404) {
       notFound();
@@ -73,6 +81,10 @@ export default async function MarketplaceDetailPage({ params }: MarketplaceDetai
             : ""}
         </p>
       </div>
+
+      {marketplaceAds[0] ? (
+        <AdvertisementBanner ad={marketplaceAds[0]} placement="search_results" />
+      ) : null}
 
       {!sellersOutcome.ok ? (
         <ErrorState

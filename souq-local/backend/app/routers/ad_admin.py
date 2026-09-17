@@ -172,6 +172,7 @@ async def create_advertisement(
         internal_notes=payload.internal_notes.strip(),
         target_city=(payload.target_city or "").strip().lower() or None,
         target_category_slug=(payload.target_category_slug or "").strip().lower() or None,
+        target_marketplace_slug=(payload.target_marketplace_slug or "").strip().lower() or None,
         target_listing_type=payload.target_listing_type,
         target_platform=payload.target_platform,
         created_by_admin_id=admin.id,
@@ -218,6 +219,8 @@ async def update_advertisement(
         if key == "target_city":
             value = (value or "").strip().lower() or None
         elif key == "target_category_slug":
+            value = (value or "").strip().lower() or None
+        elif key == "target_marketplace_slug":
             value = (value or "").strip().lower() or None
         elif key in {"advertiser_name", "campaign_name", "contact_info", "internal_notes"} and isinstance(value, str):
             value = value.strip()

@@ -13,6 +13,7 @@ from app.services.platform_advertisements import (
     AD_PLACEMENT_LABELS,
     AD_TARGET_LISTING_TYPES,
     AD_TARGET_PLATFORMS,
+    normalize_optional_slug,
     sanitize_ad_title,
     validate_ad_url,
     validate_placement,
@@ -64,6 +65,7 @@ class AdvertisementAdminOut(BaseModel):
     internal_notes: str
     target_city: str | None = None
     target_category_slug: str | None = None
+    target_marketplace_slug: str | None = None
     target_listing_type: str | None = None
     target_platform: str
     is_active: bool
@@ -133,6 +135,7 @@ class AdvertisementCreate(BaseModel):
     internal_notes: str = Field(default="", max_length=5000)
     target_city: str | None = Field(default=None, max_length=100)
     target_category_slug: str | None = Field(default=None, max_length=100)
+    target_marketplace_slug: str | None = Field(default=None, max_length=120)
     target_listing_type: str | None = None
     target_platform: str = "all"
 
@@ -155,6 +158,11 @@ class AdvertisementCreate(BaseModel):
     @classmethod
     def clean_target_listing_type(cls, value: str | None) -> str | None:
         return validate_target_listing_type(value)
+
+    @field_validator("target_marketplace_slug")
+    @classmethod
+    def clean_target_marketplace_slug(cls, value: str | None) -> str | None:
+        return normalize_optional_slug(value)
 
     @field_validator("image_url")
     @classmethod
@@ -219,6 +227,7 @@ class AdvertisementUpdate(BaseModel):
     internal_notes: str | None = Field(default=None, max_length=5000)
     target_city: str | None = Field(default=None, max_length=100)
     target_category_slug: str | None = Field(default=None, max_length=100)
+    target_marketplace_slug: str | None = Field(default=None, max_length=120)
     target_listing_type: str | None = None
     target_platform: str | None = None
 
@@ -228,6 +237,11 @@ class AdvertisementUpdate(BaseModel):
         if value is None:
             return None
         return sanitize_ad_title(value)
+
+    @field_validator("target_marketplace_slug")
+    @classmethod
+    def clean_target_marketplace_slug(cls, value: str | None) -> str | None:
+        return normalize_optional_slug(value)
 
     @field_validator("placement")
     @classmethod

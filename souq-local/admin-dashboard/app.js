@@ -848,6 +848,33 @@ function populatePlacementSelect(selected) {
   });
 }
 
+async function ensureAdMarketplacesLoaded() {
+  if (state.adMarketplaces.length) return;
+  const data = await api("/admin/marketplaces?page_size=100&status_filter=all&sort=name");
+  state.adMarketplaces = data.items || [];
+}
+
+function populateAdMarketplaceSelect(selectedSlug = "") {
+  const select = $("#ad-marketplace-select");
+  if (!select) return;
+  const normalized = (selectedSlug || "").trim().toLowerCase();
+  select.innerHTML = '<option value="">All marketplaces</option>';
+  state.adMarketplaces.forEach((marketplace) => {
+    const el = document.createElement("option");
+    el.value = marketplace.slug;
+    el.textContent = marketplace.name;
+    if (marketplace.slug === normalized) el.selected = true;
+    select.appendChild(el);
+  });
+}
+
+function marketplaceLabelForAd(ad) {
+  const slug = (ad?.target_marketplace_slug || "").trim().toLowerCase();
+  if (!slug) return "All";
+  const match = state.adMarketplaces.find((item) => item.slug === slug);
+  return match?.name || slug;
+}
+
 function defaultAdEndDatetimeLocal() {
   const end = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
   return toDatetimeLocalValue(end.toISOString());
@@ -940,6 +967,7 @@ function renderAdvertisingOverview() {
 
 async function loadAdvertisements() {
   await loadAdvertisementMeta();
+  await ensureAdMarketplacesLoaded();
   const [rows, overview] = await Promise.all([
     api("/admin/advertisements"),
     api("/admin/advertisements/overview"),
@@ -975,6 +1003,7 @@ function renderAdvertisements() {
     tr.innerHTML = `
       <td><strong>${escapeHtml(ad.title)}</strong></td>
       <td>${escapeHtml(placementLabels[ad.placement] || ad.placement || "—")}</td>
+      <td>${escapeHtml(marketplaceLabelForAd(ad))}</td>
       <td><span class="pill ${ad.status === "active" ? "active" : "hidden-stat"}">${escapeHtml(statusLabel)}</span></td>
       <td>${escapeHtml(formatDate(ad.starts_at))}</td>
       <td>${escapeHtml(formatDate(ad.ends_at))}</td>
@@ -997,7 +1026,7 @@ function normalizeAdFormStatus(status) {
   return "paused";
 }
 
-function openAdvertisementDialog(ad = null) {
+async function openAdvertisementDialog(ad = null) {
   const dialog = $("#advertisement-dialog");
   const form = $("#advertisement-form");
   state.editingAdvertisementId = ad?.id || null;
@@ -1005,6 +1034,8 @@ function openAdvertisementDialog(ad = null) {
   $("#advertisement-dialog-title").textContent = isEdit ? "Edit ad" : "Create ad";
   $("#ad-submit-btn").textContent = isEdit ? "Save changes" : "Publish";
   populatePlacementSelect(ad?.placement || "homepage_top");
+  await ensureAdMarketplacesLoaded();
+  populateAdMarketplaceSelect(ad?.target_marketplace_slug || "");
 
   form.reset();
   form.elements.title.value = ad?.title || "";
@@ -1012,6 +1043,10 @@ function openAdvertisementDialog(ad = null) {
   form.elements.video_url.value = ad?.video_url || "";
   form.elements.target_url.value = ad?.target_url || "";
   form.elements.placement.value = ad?.placement || "homepage_top";
+  if (form.elements.target_marketplace_slug) {
+    form.elements.target_marketplace_slug.value = ad?.target_marketplace_slug || "";
+  }
+  populateAdMarketplaceSelect(ad?.target_marketplace_slug || "");
   form.elements.starts_at.value = ad?.starts_at
     ? toDatetimeLocalValue(ad.starts_at)
     : toDatetimeLocalValue(new Date().toISOString());
@@ -1049,6 +1084,7 @@ function buildAdvertisementPayload(form, { isCreate }) {
     video_url: videoUrl || null,
     target_url: form.elements.target_url.value.trim(),
     placement: form.elements.placement.value,
+    target_marketplace_slug: (form.elements.target_marketplace_slug?.value || "").trim() || null,
     starts_at: startsAt,
     ends_at: endsAt,
     status: form.elements.status.value,
@@ -1107,6 +1143,7 @@ async function previewAdvertisement(adId) {
       ${mediaHtml}
       <h4>${escapeHtml(preview.title)}</h4>
       <p><strong>Placement:</strong> ${escapeHtml(preview.placement_label || preview.placement)}</p>
+      <p><strong>Marketplace:</strong> ${escapeHtml(marketplaceLabelForAd(preview))}</p>
       <p><strong>Destination:</strong> ${
         destination
           ? `<a href="${escapeHtml(destination)}" target="_blank" rel="noopener noreferrer">${escapeHtml(destination)}</a>`

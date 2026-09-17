@@ -819,6 +819,7 @@ class PlatformAdvertisement(Base):
     )
     target_city: Mapped[str | None] = mapped_column(String(100), nullable=True)
     target_category_slug: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    target_marketplace_slug: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
     target_listing_type: Mapped[str | None] = mapped_column(String(20), nullable=True)
     target_platform: Mapped[str] = mapped_column(String(20), default="all")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
