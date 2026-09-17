@@ -20,6 +20,20 @@ void main() {
     expect(model.title, 'Launch promo');
     expect(model.placement, PlatformAdPlacements.fullPage);
     expect(model.videoUrl, 'https://cdn.example.com/ad.mp4');
+    expect(model.closeDelaySeconds, 5);
+  });
+
+  test('PlatformAdvertisementModel clamps close delay to allowed values', () {
+    final model = PlatformAdvertisementModel.fromJson({
+      'id': '11111111-1111-1111-1111-111111111111',
+      'title': 'Promo',
+      'image_url': 'https://cdn.example.com/ad.jpg',
+      'target_url': 'https://example.com/promo',
+      'placement': PlatformAdPlacements.fullPage,
+      'click_url': '/ads/click/11111111-1111-1111-1111-111111111111?placement=full_page',
+      'close_delay_seconds': 10,
+    });
+    expect(model.closeDelaySeconds, 10);
   });
 
   test('buildAdClickUrl appends platform and click_key', () {

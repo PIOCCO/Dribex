@@ -10,10 +10,15 @@
 #
 # Set in .env.prod:
 #   ADMIN_PORT=7215
-#   CORS_ORIGINS=https://dribex.ma,https://www.dribex.ma,http://100.x.x.x:7215
+#   TAILSCALE_IP=$(tailscale ip -4)  (or add to .env.prod for compose)
+# CORS for the admin UI is injected via EXTRA_CORS_ORIGINS below (restart api + admin).
 # And ensure ADMIN_IP_ALLOWLIST includes 100.64.0.0/10 (Tailscale CGNAT).
 
 services:
+  api:
+    environment:
+      EXTRA_CORS_ORIGINS: "http://${TAILSCALE_IP:?set TAILSCALE_IP}:${ADMIN_PORT:-7215}"
+
   admin:
     build:
       context: ../../admin-dashboard

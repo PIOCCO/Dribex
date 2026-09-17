@@ -36,12 +36,15 @@ export default async function HomePage() {
   const tCommon = await getTranslations("common");
   const tErrors = await getTranslations("errors");
 
-  const [searchOutcome, categoriesOutcome, marketplacesOutcome, ads] = await Promise.all([
-    loadSearch({ mode: "all", limit: 8 }),
-    loadCategories(),
-    loadMarketplaces(),
-    loadActiveAdvertisements("homepage_top"),
-  ]);
+  const [searchOutcome, categoriesOutcome, marketplacesOutcome, adsTop, adsMiddle, adsBottom] =
+    await Promise.all([
+      loadSearch({ mode: "all", limit: 8 }),
+      loadCategories(),
+      loadMarketplaces(),
+      loadActiveAdvertisements("homepage_top"),
+      loadActiveAdvertisements("homepage_middle"),
+      loadActiveAdvertisements("homepage_bottom"),
+    ]);
 
   const search = searchOutcome.ok ? searchOutcome.data : null;
   const searchError = searchOutcome.ok ? null : searchOutcome;
@@ -81,7 +84,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {ads[0] ? <AdvertisementBanner ad={ads[0]} placement="homepage_top" /> : null}
+      {adsTop[0] ? <AdvertisementBanner ad={adsTop[0]} placement="homepage_top" /> : null}
 
       {categories.length > 0 ? (
         <section>
@@ -119,6 +122,8 @@ export default async function HomePage() {
           retryLabel={tCommon("tryAgain")}
         />
       ) : null}
+
+      {adsMiddle[0] ? <AdvertisementBanner ad={adsMiddle[0]} placement="homepage_middle" /> : null}
 
       <section>
         <div className="mb-4 flex items-end justify-between gap-4">
@@ -215,6 +220,8 @@ export default async function HomePage() {
           />
         ) : null}
       </section>
+
+      {adsBottom[0] ? <AdvertisementBanner ad={adsBottom[0]} placement="homepage_bottom" /> : null}
 
       {marketplaces && marketplaces.length > 0 ? (
         <section>

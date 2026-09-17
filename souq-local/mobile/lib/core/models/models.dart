@@ -1244,6 +1244,7 @@ class PlatformAdvertisementModel {
     required this.targetUrl,
     required this.placement,
     required this.clickUrl,
+    this.closeDelaySeconds = 5,
   });
 
   final String id;
@@ -1254,8 +1255,19 @@ class PlatformAdvertisementModel {
   final String targetUrl;
   final String placement;
   final String clickUrl;
+  final int closeDelaySeconds;
 
   factory PlatformAdvertisementModel.fromJson(Map<String, dynamic> json) {
+    final rawDelay = json['close_delay_seconds'];
+    var closeDelay = 5;
+    if (rawDelay is int) {
+      closeDelay = rawDelay;
+    } else if (rawDelay is num) {
+      closeDelay = rawDelay.toInt();
+    }
+    if (!{5, 10, 20}.contains(closeDelay)) {
+      closeDelay = 5;
+    }
     return PlatformAdvertisementModel(
       id: json['id'] as String,
       title: json['title'] as String? ?? '',
@@ -1265,6 +1277,7 @@ class PlatformAdvertisementModel {
       targetUrl: json['target_url'] as String? ?? '',
       placement: json['placement'] as String? ?? '',
       clickUrl: json['click_url'] as String? ?? '',
+      closeDelaySeconds: closeDelay,
     );
   }
 }
