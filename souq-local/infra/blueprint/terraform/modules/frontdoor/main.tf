@@ -1,8 +1,14 @@
 variable "name_prefix" { type = string }
 variable "resource_group_name" { type = string }
 variable "domain_name" { type = string }
-variable "backend_host" { type = string; default = "" }
-variable "tags" { type = map(string); default = {} }
+variable "backend_host" {
+  type    = string
+  default = ""
+}
+variable "tags" {
+  type    = map(string)
+  default = {}
+}
 
 resource "azurerm_cdn_frontdoor_profile" "main" {
   name                = "${var.name_prefix}-afd"
@@ -35,26 +41,26 @@ resource "azurerm_cdn_frontdoor_origin_group" "api" {
 }
 
 resource "azurerm_cdn_frontdoor_origin" "apim" {
-  count                         = var.backend_host != "" ? 1 : 0
-  name                          = "apim-origin"
-  cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.api[0].id
-  enabled                       = true
-  host_name                     = replace(var.backend_host, "https://", "")
-  http_port                     = 80
-  https_port                    = 443
-  origin_host_header            = replace(var.backend_host, "https://", "")
-  priority                      = 1
-  weight                        = 1000
+  count                          = var.backend_host != "" ? 1 : 0
+  name                           = "apim-origin"
+  cdn_frontdoor_origin_group_id  = azurerm_cdn_frontdoor_origin_group.api[0].id
+  enabled                        = true
+  host_name                      = replace(var.backend_host, "https://", "")
+  http_port                      = 80
+  https_port                     = 443
+  origin_host_header             = replace(var.backend_host, "https://", "")
+  priority                       = 1
+  weight                         = 1000
   certificate_name_check_enabled = true
 }
 
 resource "azurerm_cdn_frontdoor_firewall_policy" "waf" {
-  name                              = "${replace(var.name_prefix, "-", "")}waf"
-  resource_group_name               = var.resource_group_name
-  sku_name                          = "Premium_AzureFrontDoor"
-  enabled                           = true
-  mode                              = "Prevention"
-  tags                              = var.tags
+  name                = "${replace(var.name_prefix, "-", "")}waf"
+  resource_group_name = var.resource_group_name
+  sku_name            = "Premium_AzureFrontDoor"
+  enabled             = true
+  mode                = "Prevention"
+  tags                = var.tags
 
   managed_rule {
     type    = "Microsoft_DefaultRuleSet"

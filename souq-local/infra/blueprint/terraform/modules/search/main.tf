@@ -1,9 +1,18 @@
 variable "name_prefix" { type = string }
 variable "location" { type = string }
 variable "resource_group_name" { type = string }
-variable "private_endpoint_subnet_id" { type = string; default = null }
-variable "sku" { type = string; default = "basic" }
-variable "tags" { type = map(string); default = {} }
+variable "private_endpoint_subnet_id" {
+  type    = string
+  default = null
+}
+variable "sku" {
+  type    = string
+  default = "basic"
+}
+variable "tags" {
+  type    = map(string)
+  default = {}
+}
 
 resource "azurerm_search_service" "main" {
   name                          = "${var.name_prefix}-search"

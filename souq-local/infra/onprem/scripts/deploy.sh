@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+# AUXILIARY — rebuild/restart stack from infra/onprem (no Alembic migrations).
+#
+# Canonical production deploy (backup + migrations + health check):
+#   cd souq-local && ./scripts/production-deploy.sh
+#
+# Use this script only for iterative image rebuilds when migrations are already applied.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
-# Production deployment — canonical on-prem path.
-# Run on the server after validating .env.prod.
+# Canonical production deployment (on-prem VPS).
+# Runs: env validation → backup → build → Alembic migrations → full stack → /ready check.
+#
+# Run from souq-local root on the server after editing infra/onprem/.env.prod.
+#
+# Emergency only (skips backup failure abort): SKIP_PRE_DEPLOY_BACKUP=1
+#
+# Vault: bundled Vault is bootstrap-only (TLS disabled on internal listener).
+# See infra/onprem/README.md § Vault before public launch.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -20,7 +27,14 @@ chmod +x "$ONPREM/scripts/validate-production-env.sh"
 "$ONPREM/scripts/validate-production-env.sh" "$ENV_FILE"
 
 echo "==> Backup database and media"
-"$ONPREM/scripts/backup.sh" || true
+if ! "$ONPREM/scripts/backup.sh"; then
+  if [[ "${SKIP_PRE_DEPLOY_BACKUP:-}" == "1" ]]; then
+    echo "WARNING: pre-deploy backup failed; SKIP_PRE_DEPLOY_BACKUP=1 — continuing" >&2
+  else
+    echo "Pre-deploy backup failed. Fix backup or set SKIP_PRE_DEPLOY_BACKUP=1 for emergency deploy only." >&2
+    exit 1
+  fi
+fi
 
 echo "==> Build images"
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" build api web

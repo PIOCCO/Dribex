@@ -1,12 +1,30 @@
 variable "name_prefix" { type = string }
 variable "location" { type = string }
 variable "resource_group_name" { type = string }
-variable "admin_login" { type = string; sensitive = true }
-variable "admin_password" { type = string; sensitive = true }
-variable "delegated_subnet_id" { type = string; default = null }
-variable "private_dns_zone_id" { type = string; default = null }
-variable "high_availability" { type = bool; default = false }
-variable "tags" { type = map(string); default = {} }
+variable "admin_login" {
+  type      = string
+  sensitive = true
+}
+variable "admin_password" {
+  type      = string
+  sensitive = true
+}
+variable "delegated_subnet_id" {
+  type    = string
+  default = null
+}
+variable "private_dns_zone_id" {
+  type    = string
+  default = null
+}
+variable "high_availability" {
+  type    = bool
+  default = false
+}
+variable "tags" {
+  type    = map(string)
+  default = {}
+}
 
 resource "azurerm_postgresql_flexible_server" "main" {
   name                          = "${var.name_prefix}-pg"

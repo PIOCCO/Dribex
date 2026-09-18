@@ -68,7 +68,18 @@ terraform plan -var-file=environments/staging.tfvars.example
 ## Remote state (production)
 
 ```bash
-terraform init -backend-config=backends/remote.backend.hcl.example
+cp backends/remote.backend.hcl.example backends/remote.backend.hcl
+# Edit storage account / key — do not commit real backend config if sensitive
+terraform init -backend-config=backends/remote.backend.hcl
 ```
 
-Create `remote.backend.hcl.example` with your storage account — **separate** from `infra/terraform` state.
+Keep blueprint state **separate** from `infra/terraform` state.
+
+CI and local checks (requires Terraform CLI):
+
+```bash
+cd souq-local/infra/blueprint/terraform
+terraform init -backend=false
+terraform validate
+terraform fmt -check
+```

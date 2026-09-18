@@ -1,11 +1,26 @@
 variable "name_prefix" { type = string }
 variable "location" { type = string }
 variable "resource_group_name" { type = string }
-variable "backend_subnet_id" { type = string; default = null }
-variable "log_analytics_id" { type = string; default = null }
-variable "node_count" { type = number; default = 3 }
-variable "enable_spot_pool" { type = bool; default = false }
-variable "tags" { type = map(string); default = {} }
+variable "backend_subnet_id" {
+  type    = string
+  default = null
+}
+variable "log_analytics_id" {
+  type    = string
+  default = null
+}
+variable "node_count" {
+  type    = number
+  default = 3
+}
+variable "enable_spot_pool" {
+  type    = bool
+  default = false
+}
+variable "tags" {
+  type    = map(string)
+  default = {}
+}
 
 resource "azurerm_kubernetes_cluster" "main" {
   name                = "${var.name_prefix}-aks"
@@ -16,14 +31,13 @@ resource "azurerm_kubernetes_cluster" "main" {
   tags                = var.tags
 
   default_node_pool {
-    name                 = "api"
-    vm_size              = "Standard_D4s_v5"
-    node_count           = var.node_count
-    vnet_subnet_id       = var.backend_subnet_id
-    enable_auto_scaling  = true
-    min_count            = var.node_count
-    max_count            = 50
-    zones                = ["1", "2", "3"]
+    name                   = "api"
+    vm_size                = "Standard_D4s_v5"
+    vnet_subnet_id         = var.backend_subnet_id
+    auto_scaling_enabled   = true
+    min_count              = var.node_count
+    max_count              = 50
+    zones                  = ["1", "2", "3"]
   }
 
   identity { type = "SystemAssigned" }
@@ -49,10 +63,9 @@ resource "azurerm_kubernetes_cluster_node_pool" "workers" {
   count                 = var.enable_spot_pool ? 1 : 0
   name                  = "workers"
   kubernetes_cluster_id = azurerm_kubernetes_cluster.main.id
-  vm_size               = "Standard_D2s_v5"
-  node_count            = 0
-  enable_auto_scaling   = true
-  min_count             = 0
+  vm_size                = "Standard_D2s_v5"
+  auto_scaling_enabled   = true
+  min_count              = 0
   max_count             = 20
   vnet_subnet_id        = var.backend_subnet_id
   priority              = "Spot"
@@ -68,6 +81,6 @@ output "kube_config" {
   sensitive = true
 }
 output "internal_lb_fqdn" {
-  value = "${var.name_prefix}-api.internal"
+  value       = "${var.name_prefix}-api.internal"
   description = "Placeholder — set after K8s Service deploy"
 }
