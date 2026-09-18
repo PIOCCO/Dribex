@@ -25,6 +25,7 @@ from app.services.upload_security import (
     validate_image_bytes,
     validate_presign_upload_url,
     validate_upload_content_type,
+    validate_video_bytes,
 )
 
 router = APIRouter(prefix="/uploads", tags=["uploads"])
@@ -33,7 +34,12 @@ _LISTING_VIDEO_DISABLED = "Listing video uploads are not supported."
 
 
 def _reject_listing_video_upload(content_type: str, purpose: StoragePurpose | None = None) -> None:
-    if purpose == StoragePurpose.VIDEO or is_video_content_type(content_type):
+    if purpose == StoragePurpose.VIDEO:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=_LISTING_VIDEO_DISABLED,
+        )
+    if is_video_content_type(content_type) and purpose != StoragePurpose.ADVERTISEMENT:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=_LISTING_VIDEO_DISABLED,
@@ -204,38 +210,57 @@ async def put_storage_upload(
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
-    _reject_listing_video_upload(content_type)
+    is_video = is_video_content_type(content_type)
+    if is_video:
+        _reject_listing_video_upload(content_type, StoragePurpose.ADVERTISEMENT)
+    else:
+        _reject_listing_video_upload(content_type)
 
     body = await request.body()
     if not body:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty upload body")
 
-    if len(body) > settings.max_upload_bytes:
-        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Image too large")
+    max_bytes = (
+        settings.max_video_upload_bytes if is_video else settings.max_upload_bytes
+    )
+    if len(body) > max_bytes:
+        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Upload too large")
 
-    try:
-        validate_image_bytes(body, content_type)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-
-    from app.services.image_processing import sanitize_image_bytes
     from app.services.media_lifecycle import log_media_event
     from app.services.media_registry import register_media_object
     from app.services.minio_storage import all_buckets, api_media_url, put_object_bytes
 
-    try:
-        sanitized = sanitize_image_bytes(body, content_type=content_type)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-
     bucket = meta["bucket"]
     if bucket not in all_buckets():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid upload bucket")
+
+    if is_video:
+        try:
+            validate_video_bytes(body, content_type)
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        stored_content_type = content_type
+        stored_data = body
+    else:
+        try:
+            validate_image_bytes(body, content_type)
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+        from app.services.image_processing import sanitize_image_bytes
+
+        try:
+            sanitized = sanitize_image_bytes(body, content_type=content_type)
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        stored_content_type = sanitized.content_type
+        stored_data = sanitized.data
+
     put_object_bytes(
         bucket=bucket,
         object_key=meta["object_key"],
-        data=sanitized.data,
-        content_type=sanitized.content_type,
+        data=stored_data,
+        content_type=stored_content_type,
     )
     public_url = api_media_url(bucket=bucket, object_key=meta["object_key"])
     await register_media_object(
@@ -243,8 +268,8 @@ async def put_storage_upload(
         user_id=user.id,
         public_url=public_url,
         purpose="upload",
-        content_type=sanitized.content_type,
-        bytes_size=len(sanitized.data),
+        content_type=stored_content_type,
+        bytes_size=len(stored_data),
     )
     await session.commit()
     log_media_event(

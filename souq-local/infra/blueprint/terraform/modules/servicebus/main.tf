@@ -1,8 +1,14 @@
 variable "name_prefix" { type = string }
 variable "location" { type = string }
 variable "resource_group_name" { type = string }
-variable "private_endpoint_subnet_id" { type = string; default = null }
-variable "tags" { type = map(string); default = {} }
+variable "private_endpoint_subnet_id" {
+  type    = string
+  default = null
+}
+variable "tags" {
+  type    = map(string)
+  default = {}
+}
 
 resource "azurerm_servicebus_namespace" "main" {
   name                          = "${var.name_prefix}-sb"
@@ -19,12 +25,12 @@ locals {
 }
 
 resource "azurerm_servicebus_queue" "workers" {
-  for_each                  = toset(local.queues)
-  name                      = each.value
-  namespace_id              = azurerm_servicebus_namespace.main.id
-  max_delivery_count        = 10
+  for_each                             = toset(local.queues)
+  name                                 = each.value
+  namespace_id                         = azurerm_servicebus_namespace.main.id
+  max_delivery_count                   = 10
   dead_lettering_on_message_expiration = true
-  default_message_ttl       = "P1D"
+  default_message_ttl                  = "P1D"
 }
 
 resource "azurerm_private_endpoint" "sb" {

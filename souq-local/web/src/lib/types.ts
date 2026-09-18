@@ -7,6 +7,7 @@ export interface PlatformAdvertisement {
   target_url: string;
   placement: string;
   click_url: string;
+  close_delay_seconds?: number;
 }
 
 export interface Category {

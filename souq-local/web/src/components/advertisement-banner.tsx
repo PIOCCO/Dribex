@@ -31,7 +31,8 @@ export function AdvertisementBanner({ ad, placement, className = "" }: Advertise
   const t = useTranslations("ads");
   const imageUrl = resolveMediaUrl(ad.image_url);
   const videoUrl = ad.video_url ? resolveMediaUrl(ad.video_url) : null;
-  const clickHref = ad.click_url || safeExternalHref(ad.target_url);
+  const hasDestination = Boolean(ad.target_url?.trim() && safeExternalHref(ad.target_url));
+  const clickHref = hasDestination ? ad.click_url : null;
   const recordedRef = useRef(false);
   const viewKey = useMemo(
     () =>
@@ -65,15 +66,49 @@ export function AdvertisementBanner({ ad, placement, className = "" }: Advertise
     });
   }, [ad.id, placement, viewKey]);
 
-  if (!imageUrl || !clickHref) return null;
+  if (!imageUrl && !videoUrl) return null;
 
   const resolvedClick =
-    clickHref.startsWith("http") || clickHref.startsWith("/")
-      ? clickHref.startsWith("/")
-        ? `${getPublicApiBaseUrl()}${clickHref}`
-        : clickHref
-      : null;
-  if (!resolvedClick) return null;
+    clickHref && clickHref.startsWith("/")
+      ? `${getPublicApiBaseUrl()}${clickHref}`
+      : clickHref && clickHref.startsWith("http")
+        ? clickHref
+        : null;
+
+  const mediaBlock = (
+    <div className="aspect-[21/9] w-full overflow-hidden bg-[var(--cream)]">
+      {videoUrl ? (
+        <video
+          src={videoUrl}
+          className="h-full w-full object-cover"
+          muted
+          playsInline
+          autoPlay
+          loop
+        />
+      ) : imageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={imageUrl}
+          alt={ad.title}
+          className="h-full w-full object-cover transition group-hover:scale-[1.01]"
+          loading="lazy"
+        />
+      ) : null}
+    </div>
+  );
+
+  const caption = (
+    <div className="px-4 py-3">
+      <p className="font-semibold text-[var(--foreground)]">{ad.title}</p>
+      {ad.description ? (
+        <p className="mt-1 text-sm text-[var(--muted)]">{ad.description}</p>
+      ) : null}
+    </div>
+  );
+
+  const cardClass =
+    "group block overflow-hidden rounded-xl border border-[var(--border)] bg-white transition hover:border-[var(--primary)] hover:shadow-sm";
 
   return (
     <aside
@@ -83,39 +118,19 @@ export function AdvertisementBanner({ ad, placement, className = "" }: Advertise
       <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">
         {t("label")}
       </p>
-      <Link
-        href={resolvedClick}
-        target="_blank"
-        rel="noopener noreferrer sponsored"
-        className="group block overflow-hidden rounded-xl border border-[var(--border)] bg-white transition hover:border-[var(--primary)] hover:shadow-sm"
-      >
-        <div className="aspect-[21/9] w-full overflow-hidden bg-[var(--cream)]">
-          {videoUrl ? (
-            <video
-              src={videoUrl}
-              className="h-full w-full object-cover"
-              muted
-              playsInline
-              autoPlay
-              loop
-            />
-          ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={imageUrl}
-              alt={ad.title}
-              className="h-full w-full object-cover transition group-hover:scale-[1.01]"
-              loading="lazy"
-            />
-          )}
-        </div>
-        <div className="px-4 py-3">
-          <p className="font-semibold text-[var(--foreground)]">{ad.title}</p>
-          {ad.description ? (
-            <p className="mt-1 text-sm text-[var(--muted)]">{ad.description}</p>
-          ) : null}
-        </div>
-      </Link>
+      {resolvedClick ? (
+        <Link
+          href={resolvedClick}
+          target="_blank"
+          rel="noopener noreferrer sponsored"
+          className={cardClass}
+        >
+          {mediaBlock}
+          {caption}
+        </Link>
+      ) : (
+        <div className={cardClass}>{mediaBlock}{caption}</div>
+      )}
     </aside>
   );
 }

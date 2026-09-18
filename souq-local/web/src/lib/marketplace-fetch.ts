@@ -114,6 +114,7 @@ export async function loadActiveAdvertisements(
   options: {
     city?: string;
     categorySlug?: string;
+    marketplaceSlug?: string;
     listingType?: string;
     limit?: number;
   } = {},
@@ -123,6 +124,7 @@ export async function loadActiveAdvertisements(
       placement,
       city: options.city,
       category_slug: options.categorySlug,
+      marketplace_slug: options.marketplaceSlug,
       listing_type: options.listingType,
       platform: "web",
       limit: options.limit ?? 1,

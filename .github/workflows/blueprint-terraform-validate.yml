@@ -1,0 +1,27 @@
+name: Blueprint Terraform validate
+
+on:
+  push:
+    paths:
+      - "souq-local/infra/blueprint/terraform/**"
+  pull_request:
+    paths:
+      - "souq-local/infra/blueprint/terraform/**"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: souq-local/infra/blueprint/terraform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+      - name: terraform init (no backend)
+        run: terraform init -backend=false
+      - name: terraform validate
+        run: terraform validate
+      - name: terraform fmt check
+        run: terraform fmt -check -recursive

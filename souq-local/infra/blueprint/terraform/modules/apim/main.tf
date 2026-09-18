@@ -2,10 +2,22 @@ variable "name_prefix" { type = string }
 variable "location" { type = string }
 variable "resource_group_name" { type = string }
 variable "publisher_email" { type = string }
-variable "sku_name" { type = string; default = "Consumption_0" }
-variable "backend_url" { type = string; default = "" }
-variable "jwt_issuer" { type = string; default = "margem-api" }
-variable "tags" { type = map(string); default = {} }
+variable "sku_name" {
+  type    = string
+  default = "Consumption_0"
+}
+variable "backend_url" {
+  type    = string
+  default = ""
+}
+variable "jwt_issuer" {
+  type    = string
+  default = "margem-api"
+}
+variable "tags" {
+  type    = map(string)
+  default = {}
+}
 
 resource "azurerm_api_management" "main" {
   name                = "${var.name_prefix}-apim"

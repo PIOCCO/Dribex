@@ -27,6 +27,7 @@ from app.middleware.request_context import RequestContextMiddleware
 from app.middleware.request_limits import RequestSizeLimitMiddleware
 from app.middleware.security import SecurityHeadersMiddleware
 from app.models import Marketplace, SubscriptionPlan
+from app.services.casablanca_marketplace_seed import ensure_casablanca_marketplaces
 from app.routers import (
     ad_admin,
     admin_moderation,
@@ -117,6 +118,10 @@ async def lifespan(app: FastAPI):
         await session.commit()
 
     async with database.SessionLocal() as session:
+        await ensure_casablanca_marketplaces(session)
+        await session.commit()
+
+    async with database.SessionLocal() as session:
         await seed_morocco_cities_if_empty(session)
         await ensure_geography_seeded(session)
         await ensure_default_cities(session)
@@ -174,7 +179,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
     expose_headers=["X-Request-ID"],
     max_age=600,

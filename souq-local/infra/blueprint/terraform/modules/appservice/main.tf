@@ -4,9 +4,18 @@
 variable "name_prefix" { type = string }
 variable "location" { type = string }
 variable "resource_group_name" { type = string }
-variable "backend_subnet_id" { type = string; default = null }
-variable "log_analytics_id" { type = string; default = null }
-variable "tags" { type = map(string); default = {} }
+variable "backend_subnet_id" {
+  type    = string
+  default = null
+}
+variable "log_analytics_id" {
+  type    = string
+  default = null
+}
+variable "tags" {
+  type    = map(string)
+  default = {}
+}
 
 resource "azurerm_service_plan" "main" {
   name                = "${var.name_prefix}-asp"
@@ -26,9 +35,10 @@ resource "azurerm_linux_web_app" "api" {
   tags                = var.tags
 
   site_config {
-    minimum_tls_version = "1.2"
-    always_on           = true
-    health_check_path   = "/ready"
+    minimum_tls_version              = "1.2"
+    always_on                        = true
+    health_check_path                = "/ready"
+    health_check_eviction_time_in_min  = 5
   }
 
   identity { type = "SystemAssigned" }

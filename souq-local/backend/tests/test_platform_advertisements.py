@@ -386,6 +386,44 @@ async def test_full_page_impression_and_click_tracking():
 
 
 @pytest.mark.asyncio
+async def test_marketplace_targeting_prefers_specific_campaign():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        headers = await _admin_headers(client)
+        general = await _create_ad(client, headers, campaign_name="General promo")
+        specific = await _create_ad(
+            client,
+            headers,
+            campaign_name="Market A promo",
+            target_marketplace_slug="market-a",
+        )
+        matched = await client.get(
+            "/ads/active",
+            params={"placement": "homepage_top", "marketplace_slug": "market-a"},
+        )
+        assert matched.status_code == 200
+        assert len(matched.json()) == 1
+        assert matched.json()[0]["id"] == specific["id"]
+
+        fallback = await client.get(
+            "/ads/active",
+            params={"placement": "homepage_top", "marketplace_slug": "market-b"},
+        )
+        assert fallback.status_code == 200
+        assert len(fallback.json()) == 1
+        assert fallback.json()[0]["id"] == general["id"]
+
+        without_context = await client.get(
+            "/ads/active",
+            params={"placement": "homepage_top"},
+        )
+        assert without_context.status_code == 200
+        assert len(without_context.json()) == 1
+        assert without_context.json()[0]["id"] == general["id"]
+        assert all(row["id"] != specific["id"] for row in without_context.json())
+
+
+@pytest.mark.asyncio
 async def test_homepage_top_placement_regression_after_full_page_added():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -402,3 +440,67 @@ async def test_homepage_top_placement_regression_after_full_page_added():
         assert public.status_code == 200
         ids = {row["id"] for row in public.json()}
         assert homepage["id"] in ids
+
+
+@pytest.mark.asyncio
+async def test_active_ads_default_close_delay_and_exclude_campaign():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        headers = await _admin_headers(client)
+        first = await _create_ad(
+            client,
+            headers,
+            placement="full_page",
+            target_platform="mobile",
+            campaign_name="Interstitial A",
+        )
+        second = await _create_ad(
+            client,
+            headers,
+            placement="full_page",
+            target_platform="mobile",
+            campaign_name="Interstitial B",
+        )
+        public = await client.get(
+            "/ads/active",
+            params={"placement": "full_page", "platform": "mobile", "limit": 1},
+            headers={"X-Ad-Viewer": "viewer-rotate"},
+        )
+        assert public.status_code == 200
+        assert len(public.json()) == 1
+        assert public.json()[0]["close_delay_seconds"] == 5
+
+        excluded = await client.get(
+            "/ads/active",
+            params={
+                "placement": "full_page",
+                "platform": "mobile",
+                "limit": 1,
+                "exclude_campaign_ids": first["id"],
+            },
+            headers={"X-Ad-Viewer": "viewer-rotate"},
+        )
+        assert excluded.status_code == 200
+        assert len(excluded.json()) == 1
+        assert excluded.json()[0]["id"] == second["id"]
+
+
+@pytest.mark.asyncio
+async def test_admin_create_with_close_delay():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        headers = await _admin_headers(client)
+        created = await _create_ad(
+            client,
+            headers,
+            placement="full_page",
+            close_delay_seconds=20,
+        )
+        assert created["close_delay_seconds"] == 20
+        public = await client.get(
+            "/ads/active",
+            params={"placement": "full_page", "platform": "web", "limit": 1},
+        )
+        assert public.status_code == 200
+        if public.json():
+            assert public.json()[0]["close_delay_seconds"] == 20

@@ -39,7 +39,7 @@
 
 ## Phase 3 — Async workers (~2–3 weeks)
 
-**Enable modules:** `servicebus`, `messaging`
+**Enable modules:** `servicebus` (Event Grid / Event Hubs modules are **not** in this Terraform tree yet — add in a future blueprint revision)
 
 1. Deploy worker Deployments (email, image processing)
 2. Feature flag `ASYNC_JOBS=true` on API (future PR — not in blueprint)

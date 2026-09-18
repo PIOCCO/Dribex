@@ -12,7 +12,7 @@ http {
     sendfile on;
     keepalive_timeout 65;
     server_tokens off;
-    client_max_body_size 10m;
+    client_max_body_size 55m;
 
     upstream dribex_web {
         server web:3000;
