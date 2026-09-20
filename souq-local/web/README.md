@@ -1,51 +1,31 @@
-# Dribex public web storefront
+# Azelos public web (Next.js)
 
-Next.js App Router frontend for `https://dribex.ma`.
+Public-facing **Azelos Blueprint Seller Platform** storefront at `https://dribex.ma` (site URL configured via `PUBLIC_APP_URL` / `NEXT_PUBLIC_SITE_URL`).
 
-## Prerequisites
-
-- Node.js 20+
-- Running Dribex API (default `http://localhost:8000`)
+The Dribex marketplace UI has been replaced with a static blueprint catalog (no dependency on marketplace API routes for browsing). Existing **api-proxy** and **seller API** routes remain for backward compatibility with the Dribex backend and are unchanged in behavior.
 
 ## Local development
 
-**You must install dependencies once** (`cp env.example` alone is not enough).
-
-From the repo root:
-
-```bash
-cd souq-local
-docker compose up -d postgres api
-./scripts/dev-web.sh
-```
-
-Or from `souq-local/web`:
-
-```bash
-npm run setup    # installs deps + creates .env.local
-npm run dev
-```
-
-Manual steps:
-
 ```bash
 cd souq-local/web
-cp env.example .env.local
-npm install      # required — do not skip; do not use sudo
+npm run setup
 npm run dev
 ```
 
 Open http://localhost:3000
 
-Do **not** use `sudo npm install` — that skips `node_modules/.bin/next` on your user PATH and causes `next: not found`.
-
-## Docker (production-like)
+## Production build
 
 ```bash
-cd souq-local
-docker compose up -d --build
+NODE_ENV=production \
+  NEXT_PUBLIC_API_BASE_URL=https://api.dribex.ma \
+  NEXT_PUBLIC_SITE_URL=https://dribex.ma \
+  npm run build
 ```
 
-Storefront: http://localhost:3000
+Docker production builds inject the same variables from `infra/onprem/.env.prod` (`PUBLIC_API_URL`, `PUBLIC_APP_URL`).
 
-See `../docs/WEB_STOREFRONT.md` for deployment details.
+## Scope
+
+- **In scope:** `souq-local/web/` public pages and Azelos components.
+- **Out of scope:** `souq-local/admin-dashboard/`, mobile app, backend API (unless explicitly extended later).

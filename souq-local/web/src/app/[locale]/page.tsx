@@ -1,258 +1,82 @@
-import { Suspense } from "react";
-import { getLocale, getTranslations } from "next-intl/server";
-import { AdvertisementBanner } from "@/components/advertisement-banner";
-import { ProductCard, SellerCard, ServiceCard } from "@/components/listing-cards";
-import { SearchBar } from "@/components/search-bar";
-import { EmptyState, ErrorState } from "@/components/states";
-import { Link } from "@/i18n/navigation";
-import { BRAND } from "@/lib/config";
-import { categoryLabel } from "@/lib/format";
-import {
-  loadActiveAdvertisements,
-  loadCategories,
-  loadMarketplaces,
-  loadSearch,
-} from "@/lib/marketplace-fetch";
-import {
-  describeFetchErrorMessage,
-  serviceUnavailableDescription,
-} from "@/lib/i18n-errors";
-import { buildPageMetadata } from "@/lib/seo";
+import Link from "next/link";
+import { BlueprintCard } from "@/components/azelos/blueprint-card";
+import { ArchitectureSchematic } from "@/components/azelos/architecture-schematic";
+import { BLUEPRINT_CATEGORIES } from "@/data/blueprints";
+import { slugifyCategory } from "@/data/blueprints";
+import { featuredBlueprints, popularBlueprints } from "@/lib/blueprint-catalog";
 
-export async function generateMetadata() {
-  const t = await getTranslations("meta");
-  const locale = await getLocale();
-  return buildPageMetadata({
-    title: t("home.title"),
-    description: t("home.description"),
-    path: "/",
-    locale,
-  });
-}
-
-export default async function HomePage() {
-  const locale = await getLocale();
-  const t = await getTranslations("home");
-  const tCommon = await getTranslations("common");
-  const tErrors = await getTranslations("errors");
-
-  const [searchOutcome, categoriesOutcome, marketplacesOutcome, adsTop, adsMiddle, adsBottom] =
-    await Promise.all([
-      loadSearch({ mode: "all", limit: 8 }),
-      loadCategories(),
-      loadMarketplaces(),
-      loadActiveAdvertisements("homepage_top"),
-      loadActiveAdvertisements("homepage_middle"),
-      loadActiveAdvertisements("homepage_bottom"),
-    ]);
-
-  const search = searchOutcome.ok ? searchOutcome.data : null;
-  const searchError = searchOutcome.ok ? null : searchOutcome;
-  const categories = categoriesOutcome.ok ? categoriesOutcome.data : [];
-  const categoriesError = categoriesOutcome.ok ? null : categoriesOutcome;
-  const marketplaces = marketplacesOutcome.ok ? marketplacesOutcome.data : null;
-
-  const apiFailure = searchError || categoriesError;
+export default function AzelosHomePage() {
+  const featured = featuredBlueprints();
+  const popular = popularBlueprints();
 
   return (
-    <div className="space-y-12">
-      {apiFailure ? (
-        <ErrorState
-          title={t("apiUnavailableTitle")}
-          description={serviceUnavailableDescription(apiFailure, (key, values) =>
-            tErrors(key, values),
-          )}
-          retryHref="/"
-          retryLabel={tCommon("tryAgain")}
-        />
-      ) : null}
-
-      <section className="overflow-hidden rounded-3xl bg-gradient-to-br from-[var(--cream)] via-white to-[var(--primary-muted)] px-6 py-10 sm:px-10">
-        <div className="max-w-2xl">
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--primary)]">
-            {t("publicMarketplace")}
-          </p>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
-            {t("heroTitle", { brand: BRAND.name })}
+    <div className="space-y-20 animate-fade-in">
+      <section className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
+        <div>
+          <p className="font-mono text-xs uppercase tracking-[0.2em] text-sky-500">Azelos Blueprint Platform</p>
+          <h1 className="mt-4 text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
+            Production-ready cloud infrastructure,{" "}
+            <span className="text-gradient">packaged as deployable blueprints.</span>
           </h1>
-          <p className="mt-4 text-base text-[var(--muted)]">{t("heroDescription")}</p>
-        </div>
-        <div className="mt-8">
-          <Suspense fallback={<div className="h-16 animate-pulse rounded-2xl bg-white/70" />}>
-            <SearchBar />
-          </Suspense>
-        </div>
-      </section>
-
-      {adsTop[0] ? <AdvertisementBanner ad={adsTop[0]} placement="homepage_top" /> : null}
-
-      {categories.length > 0 ? (
-        <section>
-          <div className="mb-4 flex items-end justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-semibold">{t("shopByCategory")}</h2>
-              <p className="text-sm text-[var(--muted)]">{t("shopByCategorySubtitle")}</p>
-            </div>
-            <Link href="/categories" className="text-sm font-semibold text-[var(--primary)]">
-              {tCommon("viewAll")}
+          <p className="mt-6 max-w-xl text-lg leading-relaxed text-slate-400">
+            Discover Azure architectures, Docker stacks, CI/CD, monitoring, SOC, FinOps, and private AI
+            infrastructure—built for platform teams, agencies, and engineering-led companies.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-4">
+            <Link
+              href="/blueprints"
+              className="rounded-lg bg-sky-600 px-6 py-3 text-sm font-semibold text-white hover:bg-sky-500"
+            >
+              Explore marketplace
+            </Link>
+            <Link
+              href="/docs"
+              className="rounded-lg border border-slate-700 px-6 py-3 text-sm font-semibold text-slate-200 hover:border-sky-500/50"
+            >
+              Documentation
             </Link>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {categories.slice(0, 8).map((category) => (
-              <Link
-                key={category.id}
-                href={`/categories/${category.slug}`}
-                className="rounded-2xl border border-[var(--border)] bg-white px-4 py-5 transition hover:border-[var(--primary)] hover:shadow-sm"
-              >
-                <p className="font-semibold">{categoryLabel(category, locale)}</p>
-                <p className="mt-1 text-xs uppercase tracking-wide text-[var(--muted)]">
-                  {category.slug}
-                </p>
-              </Link>
-            ))}
-          </div>
-        </section>
-      ) : categoriesError ? (
-        <ErrorState
-          title={t("categoriesUnavailable")}
-          description={describeFetchErrorMessage(categoriesError, (key, values) =>
-            tErrors(key, values),
-          )}
-          retryHref="/"
-          retryLabel={tCommon("tryAgain")}
-        />
-      ) : null}
-
-      {adsMiddle[0] ? <AdvertisementBanner ad={adsMiddle[0]} placement="homepage_middle" /> : null}
-
-      <section>
-        <div className="mb-4 flex items-end justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-semibold">{t("featuredProducts")}</h2>
-            <p className="text-sm text-[var(--muted)]">{t("featuredProductsSubtitle")}</p>
-          </div>
-          <Link href="/products" className="text-sm font-semibold text-[var(--primary)]">
-            {tCommon("seeAllProducts")}
-          </Link>
         </div>
-        {searchError ? (
-          <ErrorState
-            title={t("productsUnavailable")}
-            description={describeFetchErrorMessage(searchError, (key, values) =>
-              tErrors(key, values),
-            )}
-            retryHref="/"
-            retryLabel={tCommon("tryAgain")}
-          />
-        ) : search && search.products.length === 0 ? (
-          <EmptyState
-            title={t("noProductsTitle")}
-            description={t("noProductsDescription")}
-            actionHref="/sellers"
-            actionLabel={tCommon("browseBusinesses")}
-          />
-        ) : search ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {search.products.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
-        ) : null}
+        <ArchitectureSchematic title="Blueprint delivery model" />
       </section>
 
       <section>
-        <div className="mb-4 flex items-end justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-semibold">{t("featuredServices")}</h2>
-            <p className="text-sm text-[var(--muted)]">{t("featuredServicesSubtitle")}</p>
-          </div>
-          <Link href="/services" className="text-sm font-semibold text-[var(--primary)]">
-            {tCommon("seeAllServices")}
+        <div className="flex items-end justify-between gap-4">
+          <h2 className="text-2xl font-semibold text-slate-100">Featured blueprints</h2>
+          <Link href="/blueprints" className="text-sm text-sky-400 hover:text-sky-300">
+            View all →
           </Link>
         </div>
-        {searchError ? null : search && search.services.length > 0 ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {search.services.slice(0, 4).map((service) => (
-              <ServiceCard key={service.id} service={service} />
-            ))}
-          </div>
-        ) : search ? (
-          <EmptyState
-            title={t("noServicesTitle")}
-            description={t("noServicesDescription")}
-            actionHref="/sellers"
-            actionLabel={tCommon("browseBusinesses")}
-          />
-        ) : null}
+        <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {featured.map((b) => (
+            <BlueprintCard key={b.slug} blueprint={b} />
+          ))}
+        </div>
       </section>
 
       <section>
-        <div className="mb-4 flex items-end justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-semibold">{t("topBusinesses")}</h2>
-            <p className="text-sm text-[var(--muted)]">{t("topBusinessesSubtitle")}</p>
-          </div>
-          <Link href="/sellers" className="text-sm font-semibold text-[var(--primary)]">
-            {tCommon("viewDirectory")}
-          </Link>
+        <h2 className="text-2xl font-semibold text-slate-100">Browse by discipline</h2>
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {BLUEPRINT_CATEGORIES.map((cat) => (
+            <Link
+              key={cat}
+              href={`/categories/${slugifyCategory(cat)}`}
+              className="card-surface px-4 py-3 text-sm text-slate-300 transition hover:border-sky-500/40 hover:text-sky-200"
+            >
+              {cat}
+            </Link>
+          ))}
         </div>
-        {searchError ? (
-          <ErrorState
-            title={t("businessDirectoryUnavailable")}
-            description={describeFetchErrorMessage(searchError, (key, values) =>
-              tErrors(key, values),
-            )}
-            retryHref="/"
-            retryLabel={tCommon("tryAgain")}
-          />
-        ) : search && search.sellers.length > 0 ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {search.sellers.slice(0, 6).map((seller) => (
-              <SellerCard key={seller.id} seller={seller} />
-            ))}
-          </div>
-        ) : search ? (
-          <EmptyState
-            title={t("noBusinessesTitle")}
-            description={t("noBusinessesDescription")}
-            actionHref="/search?mode=sellers"
-            actionLabel={tCommon("searchMarketplace")}
-          />
-        ) : null}
       </section>
 
-      {adsBottom[0] ? <AdvertisementBanner ad={adsBottom[0]} placement="homepage_bottom" /> : null}
-
-      {marketplaces && marketplaces.length > 0 ? (
-        <section>
-          <div className="mb-4 flex items-end justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-semibold">{t("markets")}</h2>
-              <p className="text-sm text-[var(--muted)]">{t("marketsSubtitle")}</p>
-            </div>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {marketplaces.slice(0, 6).map((marketplace) => (
-              <Link
-                key={marketplace.id}
-                href={`/marketplaces/${marketplace.slug}`}
-                className="rounded-2xl border border-[var(--border)] bg-white p-5 transition hover:shadow-sm"
-              >
-                <h3 className="font-semibold">{marketplace.name}</h3>
-                <p className="mt-2 line-clamp-2 text-sm text-[var(--muted)]">
-                  {marketplace.description}
-                </p>
-                <p className="mt-3 text-xs text-[var(--muted)]">
-                  {t("sellersCountInMarket", {
-                    count: marketplace.seller_count ?? 0,
-                    city: marketplace.city,
-                  })}
-                </p>
-              </Link>
-            ))}
-          </div>
-        </section>
-      ) : null}
+      <section>
+        <h2 className="text-2xl font-semibold text-slate-100">Popular with platform teams</h2>
+        <div className="mt-8 grid gap-6 md:grid-cols-2">
+          {popular.map((b) => (
+            <BlueprintCard key={b.slug} blueprint={b} />
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

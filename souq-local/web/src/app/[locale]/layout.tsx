@@ -1,21 +1,22 @@
-import { Inter, Noto_Sans_Arabic } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import { notFound } from "next/navigation";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, setRequestLocale } from "next-intl/server";
-import { FullPageAdHost } from "@/components/full-page-ad-interstitial";
-import { SiteFooter } from "@/components/site-footer";
-import { SiteHeader } from "@/components/site-header";
-import { localeDirection } from "@/i18n/locale";
+import { AzelosSiteFooter } from "@/components/azelos/site-footer";
+import { AzelosSiteHeader } from "@/components/azelos/site-header";
+import { azelosMetadata } from "@/app/[locale]/metadata";
 import { routing, type AppLocale } from "@/i18n/routing";
+
+export const metadata = azelosMetadata;
 
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
 });
 
-const notoSansArabic = Noto_Sans_Arabic({
-  subsets: ["arabic"],
-  variable: "--font-arabic",
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
 });
 
 export const dynamic = "force-dynamic";
@@ -38,19 +39,16 @@ export default async function LocaleLayout({
 
   setRequestLocale(locale);
   const messages = await getMessages();
-  const dir = localeDirection(locale);
-  const fontClass = locale === "ar" ? notoSansArabic.className : inter.className;
 
   return (
-    <html lang={locale} dir={dir}>
-      <body className={`${fontClass} ${inter.variable} ${notoSansArabic.variable} font-sans antialiased`}>
+    <html lang={locale} dir="ltr">
+      <body
+        className={`${inter.className} ${inter.variable} ${jetbrainsMono.variable} font-sans antialiased`}
+      >
         <NextIntlClientProvider locale={locale} messages={messages}>
-          <SiteHeader />
-          <main className="mx-auto min-h-[60vh] max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-            {children}
-          </main>
-          <SiteFooter />
-          <FullPageAdHost />
+          <AzelosSiteHeader />
+          <main className="mx-auto min-h-[60vh] max-w-7xl px-4 py-8 sm:px-6 lg:px-8">{children}</main>
+          <AzelosSiteFooter />
         </NextIntlClientProvider>
       </body>
     </html>

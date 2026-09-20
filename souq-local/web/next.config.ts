@@ -20,6 +20,21 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
+  async redirects() {
+    const legacy = [
+      "search",
+      "products",
+      "services",
+      "sellers",
+      "cities",
+      "marketplaces",
+      "seller",
+    ];
+    return legacy.flatMap((segment) => [
+      { source: `/${segment}`, destination: "/blueprints", permanent: false },
+      { source: `/${segment}/:path*`, destination: "/blueprints", permanent: false },
+    ]);
+  },
   async headers() {
     return [
       {
