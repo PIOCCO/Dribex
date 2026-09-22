@@ -1,6 +1,24 @@
-# APIO demo (Maison Maroc) at `/AIPO`
+# APIO demo (Maison Maroc) at `/AIPO` — **temporary**
 
-Vite + React app served at **`https://dribex.ma/AIPO/`** via production nginx.
+This app is **optional**. Normal production deploy does **not** expose `/AIPO`.
+
+## Enable demo (client preview)
+
+```bash
+cd souq-local/infra/onprem
+chmod +x scripts/aipo-demo-enable.sh scripts/aipo-demo-disable.sh
+./scripts/aipo-demo-enable.sh
+```
+
+Open **https://dribex.ma/AIPO/**
+
+## Disable demo (remove from production)
+
+```bash
+./scripts/aipo-demo-disable.sh
+```
+
+This stops `aipo-web`, removes nginx routes, and leaves the main Dribex site unchanged.
 
 ## Local dev
 
@@ -10,24 +28,8 @@ npm install
 npm run dev
 ```
 
-Open **http://localhost:5173/AIPO/** (base path is `/AIPO/`).
+Open **http://localhost:5173/AIPO/**
 
-## Production (Docker)
+## Remove from git entirely (optional)
 
-Built as service **`aipo-web`** in `infra/onprem/docker-compose.prod.yml`.
-
-After deploy:
-
-```text
-https://dribex.ma/AIPO/
-```
-
-Rebuild only AIPO:
-
-```bash
-cd souq-local/infra/onprem
-docker compose -f docker-compose.prod.yml --env-file .env.prod build aipo-web
-docker compose -f docker-compose.prod.yml --env-file .env.prod up -d aipo-web nginx
-```
-
-Does not use the Dribex API or mobile app.
+Delete `souq-local/sites/aipo/` and the aipo compose/scripts on a branch — not required if you only use enable/disable on the server.
