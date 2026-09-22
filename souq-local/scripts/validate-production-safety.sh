@@ -43,8 +43,10 @@ echo "==> Dribex production safety validation (repository)"
 echo ""
 
 echo "==> Mobile production safety"
-check "Mobile release script uses https://api.dribex.ma" \
-  rg -q 'API_BASE_URL.*https://api\.dribex\.ma' "$ROOT/scripts/build-production-android.sh"
+check "Mobile production dart-defines use https://api.dribex.ma" \
+  rg -q 'API_URL="\$\{API_BASE_URL:-https://api\.dribex\.ma\}"' "$ROOT/scripts/mobile-production-dart-defines.sh"
+check "Mobile release build sources production dart-defines" \
+  rg -q 'mobile-production-dart-defines\.sh' "$ROOT/scripts/build-production-android.sh"
 check "Mobile AppConfig defines production API URL" \
   rg -q "productionApiBaseUrl = 'https://api\.dribex\.ma'" "$ROOT/mobile/lib/core/config/app_config.dart"
 check "Mobile AppConfig rejects dev hosts in release validation" \
@@ -109,9 +111,9 @@ echo "==> Docker port policy"
 check "Production compose port policy script exists" \
   test -x "$ROOT/infra/onprem/scripts/validate-compose-ports.sh"
 if "$ROOT/infra/onprem/scripts/validate-compose-ports.sh" >/dev/null 2>&1; then
-  green "Production compose publishes only nginx 80/443"
+  green "Production compose port policy (prod + Tailscale admin overlay)"
 else
-  red "Production compose publishes only nginx 80/443"
+  red "Production compose port policy (prod + Tailscale admin overlay)"
 fi
 
 echo ""

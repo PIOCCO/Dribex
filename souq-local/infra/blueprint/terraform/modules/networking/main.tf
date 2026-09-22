@@ -4,11 +4,26 @@ variable "name_prefix" { type = string }
 variable "location" { type = string }
 variable "resource_group_name" { type = string }
 variable "vnet_address_space" { type = list(string) }
-variable "enable_ddos" { type = bool; default = false }
-variable "enable_firewall" { type = bool; default = false }
-variable "enable_bastion" { type = bool; default = true }
-variable "enable_nat_gateway" { type = bool; default = true }
-variable "tags" { type = map(string); default = {} }
+variable "enable_ddos" {
+  type    = bool
+  default = false
+}
+variable "enable_firewall" {
+  type    = bool
+  default = false
+}
+variable "enable_bastion" {
+  type    = bool
+  default = true
+}
+variable "enable_nat_gateway" {
+  type    = bool
+  default = true
+}
+variable "tags" {
+  type    = map(string)
+  default = {}
+}
 
 resource "azurerm_virtual_network" "main" {
   name                = "${var.name_prefix}-vnet"
@@ -41,17 +56,17 @@ resource "azurerm_subnet" "database" {
   delegation {
     name = "postgresql"
     service_delegation {
-      name = "Microsoft.DBforPostgreSQL/flexibleServers"
+      name    = "Microsoft.DBforPostgreSQL/flexibleServers"
       actions = ["Microsoft.Network/virtualNetworks/subnets/join/action"]
     }
   }
 }
 
 resource "azurerm_subnet" "private_endpoints" {
-  name                 = "snet-private-endpoints"
-  resource_group_name  = var.resource_group_name
-  virtual_network_name = azurerm_virtual_network.main.name
-  address_prefixes     = ["10.0.5.0/24"]
+  name                              = "snet-private-endpoints"
+  resource_group_name               = var.resource_group_name
+  virtual_network_name              = azurerm_virtual_network.main.name
+  address_prefixes                  = ["10.0.5.0/24"]
   private_endpoint_network_policies = "Disabled"
 }
 

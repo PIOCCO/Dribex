@@ -1,0 +1,12 @@
+# Remote state for blueprint Terraform (separate from infra/terraform state).
+#
+# 1. Create a storage account + container once (any subscription).
+# 2. Copy to backends/remote.backend.hcl and fill in values (do not commit real names if sensitive).
+# 3. terraform init -backend-config=backends/remote.backend.hcl
+#
+# Example values — replace before use:
+
+resource_group_name  = "rg-terraform-state"
+storage_account_name = "yourtfstateaccount"
+container_name       = "tfstate"
+key                  = "margem/blueprint/terraform.tfstate"

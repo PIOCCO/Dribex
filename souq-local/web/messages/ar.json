@@ -309,6 +309,11 @@
   },
   "ads": {
     "label": "إعلان",
-    "ariaLabel": "إعلان"
+    "ariaLabel": "إعلان",
+    "fullPageAriaLabel": "إعلان ملء الشاشة",
+    "close": "إغلاق",
+    "mute": "كتم الصوت",
+    "unmute": "تشغيل الصوت",
+    "openDestination": "فتح رابط الإعلان"
   }
 }

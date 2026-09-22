@@ -14,12 +14,10 @@ locals {
     frontdoor       = local.is_active && try(var.module_flags.frontdoor, false)
     redis           = local.is_active && try(var.module_flags.redis, false)
     servicebus      = local.is_active && try(var.module_flags.servicebus, false)
-    messaging       = local.is_active && try(var.module_flags.messaging, false)
     search          = local.is_active && try(var.module_flags.search, false)
     ai              = local.is_active && try(var.module_flags.ai, false)
     ddos_protection = local.is_active && try(var.module_flags.ddos_protection, false)
     firewall        = local.is_active && try(var.module_flags.firewall, false)
-    multi_region    = local.is_active && try(var.module_flags.multi_region, false)
   }
 
   name_prefix = "${var.name_prefix}-${var.environment_name}"
@@ -44,15 +42,15 @@ module "networking" {
   source = "./modules/networking"
   count  = local.flags.networking ? 1 : 0
 
-  name_prefix          = local.name_prefix
-  location             = var.location
-  resource_group_name  = azurerm_resource_group.blueprint[0].name
-  vnet_address_space   = var.vnet_address_space
-  enable_ddos          = local.flags.ddos_protection
-  enable_firewall      = local.flags.firewall
-  enable_bastion       = true
-  enable_nat_gateway   = true
-  tags                 = local.tags
+  name_prefix         = local.name_prefix
+  location            = var.location
+  resource_group_name = azurerm_resource_group.blueprint[0].name
+  vnet_address_space  = var.vnet_address_space
+  enable_ddos         = local.flags.ddos_protection
+  enable_firewall     = local.flags.firewall
+  enable_bastion      = true
+  enable_nat_gateway  = true
+  tags                = local.tags
 }
 
 module "monitoring" {
@@ -70,14 +68,14 @@ module "keyvault" {
   source = "./modules/keyvault"
   count  = local.flags.keyvault ? 1 : 0
 
-  name_prefix              = local.name_prefix
-  location                 = var.location
-  resource_group_name      = azurerm_resource_group.blueprint[0].name
-  tenant_id                = data.azurerm_client_config.current.tenant_id
+  name_prefix                = local.name_prefix
+  location                   = var.location
+  resource_group_name        = azurerm_resource_group.blueprint[0].name
+  tenant_id                  = data.azurerm_client_config.current.tenant_id
   private_endpoint_subnet_id = local.flags.networking ? module.networking[0].private_endpoints_subnet_id : null
-  log_analytics_id         = local.flags.monitoring ? module.monitoring[0].log_analytics_workspace_id : null
-  purge_protection         = var.environment_name == "production"
-  tags                     = local.tags
+  log_analytics_id           = local.flags.monitoring ? module.monitoring[0].log_analytics_workspace_id : null
+  purge_protection           = var.environment_name == "production"
+  tags                       = local.tags
 
   depends_on = [module.networking]
 }
@@ -103,12 +101,12 @@ module "storage" {
   source = "./modules/storage"
   count  = local.flags.storage ? 1 : 0
 
-  name_prefix              = local.name_prefix
-  location                 = var.location
-  resource_group_name      = azurerm_resource_group.blueprint[0].name
+  name_prefix                = local.name_prefix
+  location                   = var.location
+  resource_group_name        = azurerm_resource_group.blueprint[0].name
   private_endpoint_subnet_id = local.flags.networking ? module.networking[0].private_endpoints_subnet_id : null
-  geo_redundant            = var.environment_name == "production"
-  tags                     = local.tags
+  geo_redundant              = var.environment_name == "production"
+  tags                       = local.tags
 
   depends_on = [module.networking]
 }
@@ -117,12 +115,12 @@ module "redis" {
   source = "./modules/redis"
   count  = local.flags.redis ? 1 : 0
 
-  name_prefix              = local.name_prefix
-  location                 = var.location
-  resource_group_name      = azurerm_resource_group.blueprint[0].name
+  name_prefix                = local.name_prefix
+  location                   = var.location
+  resource_group_name        = azurerm_resource_group.blueprint[0].name
   private_endpoint_subnet_id = local.flags.networking ? module.networking[0].private_endpoints_subnet_id : null
-  sku_name                 = var.environment_name == "production" ? "Standard" : "Basic"
-  tags                     = local.tags
+  sku_name                   = var.environment_name == "production" ? "Standard" : "Basic"
+  tags                       = local.tags
 
   depends_on = [module.networking]
 }
@@ -131,11 +129,11 @@ module "servicebus" {
   source = "./modules/servicebus"
   count  = local.flags.servicebus ? 1 : 0
 
-  name_prefix              = local.name_prefix
-  location                 = var.location
-  resource_group_name      = azurerm_resource_group.blueprint[0].name
+  name_prefix                = local.name_prefix
+  location                   = var.location
+  resource_group_name        = azurerm_resource_group.blueprint[0].name
   private_endpoint_subnet_id = local.flags.networking ? module.networking[0].private_endpoints_subnet_id : null
-  tags                     = local.tags
+  tags                       = local.tags
 
   depends_on = [module.networking]
 }
@@ -176,11 +174,11 @@ module "frontdoor" {
   source = "./modules/frontdoor"
   count  = local.flags.frontdoor ? 1 : 0
 
-  name_prefix    = local.name_prefix
+  name_prefix         = local.name_prefix
   resource_group_name = azurerm_resource_group.blueprint[0].name
-  domain_name    = var.domain_name
-  backend_host   = local.flags.apim ? module.apim[0].gateway_url : ""
-  tags           = local.tags
+  domain_name         = var.domain_name
+  backend_host        = local.flags.apim ? module.apim[0].gateway_url : ""
+  tags                = local.tags
 
   depends_on = [module.apim]
 }
@@ -189,12 +187,12 @@ module "search" {
   source = "./modules/search"
   count  = local.flags.search ? 1 : 0
 
-  name_prefix              = local.name_prefix
-  location                 = var.location
-  resource_group_name      = azurerm_resource_group.blueprint[0].name
+  name_prefix                = local.name_prefix
+  location                   = var.location
+  resource_group_name        = azurerm_resource_group.blueprint[0].name
   private_endpoint_subnet_id = local.flags.networking ? module.networking[0].private_endpoints_subnet_id : null
-  sku                      = var.environment_name == "production" ? "standard" : "basic"
-  tags                     = local.tags
+  sku                        = var.environment_name == "production" ? "standard" : "basic"
+  tags                       = local.tags
 
   depends_on = [module.networking]
 }

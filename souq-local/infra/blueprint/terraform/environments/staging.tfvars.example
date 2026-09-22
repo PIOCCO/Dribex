@@ -25,12 +25,10 @@ module_flags = {
   frontdoor       = false
   redis           = false
   servicebus      = false
-  messaging       = false
   search          = false
   ai              = false
   ddos_protection = false
   firewall        = false
-  multi_region    = false
 }
 
 common_tags = {

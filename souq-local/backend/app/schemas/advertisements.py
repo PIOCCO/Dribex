@@ -13,11 +13,14 @@ from app.services.platform_advertisements import (
     AD_PLACEMENT_LABELS,
     AD_TARGET_LISTING_TYPES,
     AD_TARGET_PLATFORMS,
+    normalize_optional_slug,
     sanitize_ad_title,
     validate_ad_url,
+    validate_close_delay_seconds,
     validate_placement,
     validate_target_listing_type,
     validate_target_platform,
+    AD_CLOSE_DELAY_SECONDS,
 )
 
 
@@ -35,6 +38,7 @@ class AdvertisementPublicOut(BaseModel):
     target_url: str
     placement: str
     click_url: str
+    close_delay_seconds: int = 5
 
     model_config = {"from_attributes": True}
 
@@ -64,8 +68,10 @@ class AdvertisementAdminOut(BaseModel):
     internal_notes: str
     target_city: str | None = None
     target_category_slug: str | None = None
+    target_marketplace_slug: str | None = None
     target_listing_type: str | None = None
     target_platform: str
+    close_delay_seconds: int = 5
     is_active: bool
     created_at: datetime
     updated_at: datetime
@@ -112,13 +118,13 @@ class AdvertisementOverviewOut(BaseModel):
 
 
 class AdvertisementCreate(BaseModel):
-    advertiser_name: str = Field(min_length=1, max_length=200)
-    campaign_name: str = Field(min_length=1, max_length=200)
+    advertiser_name: str = Field(default="Dribex", max_length=200)
+    campaign_name: str = Field(default="", max_length=200)
     title: str = Field(min_length=1, max_length=120)
     description: str | None = Field(default=None, max_length=2000)
-    image_url: str = Field(min_length=8, max_length=2048)
+    image_url: str = Field(default="", max_length=2048)
     video_url: str | None = Field(default=None, max_length=2048)
-    target_url: str = Field(min_length=8, max_length=2048)
+    target_url: str = Field(default="", max_length=2048)
     contact_info: str = Field(default="", max_length=500)
     placement: str = Field(default="homepage_top")
     starts_at: datetime | None = None
@@ -133,8 +139,10 @@ class AdvertisementCreate(BaseModel):
     internal_notes: str = Field(default="", max_length=5000)
     target_city: str | None = Field(default=None, max_length=100)
     target_category_slug: str | None = Field(default=None, max_length=100)
+    target_marketplace_slug: str | None = Field(default=None, max_length=120)
     target_listing_type: str | None = None
     target_platform: str = "all"
+    close_delay_seconds: int = 5
 
     @field_validator("title")
     @classmethod
@@ -156,10 +164,23 @@ class AdvertisementCreate(BaseModel):
     def clean_target_listing_type(cls, value: str | None) -> str | None:
         return validate_target_listing_type(value)
 
+    @field_validator("close_delay_seconds")
+    @classmethod
+    def clean_close_delay_seconds(cls, value: int) -> int:
+        return validate_close_delay_seconds(value)
+
+    @field_validator("target_marketplace_slug")
+    @classmethod
+    def clean_target_marketplace_slug(cls, value: str | None) -> str | None:
+        return normalize_optional_slug(value)
+
     @field_validator("image_url")
     @classmethod
     def clean_image_url(cls, value: str) -> str:
-        return validate_ad_url(value, field_name="image_url") or ""
+        cleaned = value.strip()
+        if not cleaned:
+            return ""
+        return validate_ad_url(cleaned, field_name="image_url") or ""
 
     @field_validator("video_url")
     @classmethod
@@ -171,12 +192,26 @@ class AdvertisementCreate(BaseModel):
     @field_validator("target_url")
     @classmethod
     def clean_target_url(cls, value: str) -> str:
-        return validate_ad_url(value, field_name="target_url") or ""
+        cleaned = value.strip()
+        if not cleaned:
+            return ""
+        return validate_ad_url(cleaned, field_name="target_url", required=True) or ""
 
     @model_validator(mode="after")
-    def validate_schedule(self):
+    def validate_schedule_and_media(self):
         if self.starts_at and self.ends_at and self.ends_at <= self.starts_at:
             raise ValueError("ends_at must be after starts_at")
+        title = self.title.strip()
+        if not self.advertiser_name.strip():
+            self.advertiser_name = "Dribex"
+        if not self.campaign_name.strip():
+            self.campaign_name = title
+        has_image = bool(self.image_url.strip())
+        has_video = bool(self.video_url and self.video_url.strip())
+        if not has_image and not has_video:
+            raise ValueError("An image or video URL is required")
+        if not has_image and has_video:
+            self.image_url = self.video_url or ""
         return self
 
 
@@ -202,8 +237,10 @@ class AdvertisementUpdate(BaseModel):
     internal_notes: str | None = Field(default=None, max_length=5000)
     target_city: str | None = Field(default=None, max_length=100)
     target_category_slug: str | None = Field(default=None, max_length=100)
+    target_marketplace_slug: str | None = Field(default=None, max_length=120)
     target_listing_type: str | None = None
     target_platform: str | None = None
+    close_delay_seconds: int | None = None
 
     @field_validator("title")
     @classmethod
@@ -211,6 +248,18 @@ class AdvertisementUpdate(BaseModel):
         if value is None:
             return None
         return sanitize_ad_title(value)
+
+    @field_validator("close_delay_seconds")
+    @classmethod
+    def clean_close_delay_seconds(cls, value: int | None) -> int | None:
+        if value is None:
+            return None
+        return validate_close_delay_seconds(value)
+
+    @field_validator("target_marketplace_slug")
+    @classmethod
+    def clean_target_marketplace_slug(cls, value: str | None) -> str | None:
+        return normalize_optional_slug(value)
 
     @field_validator("placement")
     @classmethod
@@ -250,7 +299,10 @@ class AdvertisementUpdate(BaseModel):
     def clean_target_url(cls, value: str | None) -> str | None:
         if value is None:
             return None
-        return validate_ad_url(value, field_name="target_url")
+        cleaned = value.strip()
+        if not cleaned:
+            return ""
+        return validate_ad_url(cleaned, field_name="target_url", required=True)
 
 
 class ImpressionCreate(BaseModel):
@@ -286,4 +338,5 @@ def placement_meta() -> dict[str, object]:
         "payment_statuses": [status.value for status in PlatformAdPaymentStatus],
         "target_platforms": list(AD_TARGET_PLATFORMS),
         "target_listing_types": list(AD_TARGET_LISTING_TYPES),
+        "close_delay_seconds": list(AD_CLOSE_DELAY_SECONDS),
     }

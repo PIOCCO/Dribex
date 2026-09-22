@@ -1,9 +1,18 @@
 variable "name_prefix" { type = string }
 variable "location" { type = string }
 variable "resource_group_name" { type = string }
-variable "private_endpoint_subnet_id" { type = string; default = null }
-variable "geo_redundant" { type = bool; default = true }
-variable "tags" { type = map(string); default = {} }
+variable "private_endpoint_subnet_id" {
+  type    = string
+  default = null
+}
+variable "geo_redundant" {
+  type    = bool
+  default = true
+}
+variable "tags" {
+  type    = map(string)
+  default = {}
+}
 
 resource "random_string" "suffix" {
   length  = 6
@@ -23,7 +32,7 @@ resource "azurerm_storage_account" "media" {
   public_network_access_enabled   = false
   allow_nested_items_to_be_public = false
   blob_properties {
-    versioning_enabled  = true
+    versioning_enabled = true
     delete_retention_policy { days = 30 }
     container_delete_retention_policy { days = 30 }
   }

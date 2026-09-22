@@ -59,24 +59,22 @@ variable "vnet_address_space" {
 variable "module_flags" {
   description = "Enable individual blueprint modules. Ignored when blueprint_enabled=false."
   type = object({
-    networking    = optional(bool, false)
-    keyvault      = optional(bool, false)
-    postgresql    = optional(bool, false)
-    storage       = optional(bool, false)
-    monitoring    = optional(bool, false)
-    security      = optional(bool, false)
-    aks           = optional(bool, false)
-    appservice    = optional(bool, false) # Bridge from Container Apps
-    apim          = optional(bool, false)
-    frontdoor     = optional(bool, false)
-    redis         = optional(bool, false)
-    servicebus    = optional(bool, false)
-    messaging     = optional(bool, false) # Event Grid + Event Hubs
-    search        = optional(bool, false)
-    ai            = optional(bool, false)
+    networking      = optional(bool, false)
+    keyvault        = optional(bool, false)
+    postgresql      = optional(bool, false)
+    storage         = optional(bool, false)
+    monitoring      = optional(bool, false)
+    security        = optional(bool, false)
+    aks             = optional(bool, false)
+    appservice      = optional(bool, false) # Bridge from Container Apps
+    apim            = optional(bool, false)
+    frontdoor       = optional(bool, false)
+    redis           = optional(bool, false)
+    servicebus      = optional(bool, false)
+    search          = optional(bool, false)
+    ai              = optional(bool, false)
     ddos_protection = optional(bool, false)
-    firewall      = optional(bool, false)
-    multi_region  = optional(bool, false)
+    firewall        = optional(bool, false)
   })
   default = {}
 }

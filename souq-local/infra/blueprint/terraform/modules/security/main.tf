@@ -1,8 +1,14 @@
 variable "name_prefix" { type = string }
 variable "location" { type = string }
 variable "resource_group_name" { type = string }
-variable "log_analytics_id" { type = string; default = null }
-variable "tags" { type = map(string); default = {} }
+variable "log_analytics_id" {
+  type    = string
+  default = null
+}
+variable "tags" {
+  type    = map(string)
+  default = {}
+}
 
 data "azurerm_subscription" "current" {}
 
@@ -32,9 +38,9 @@ resource "azurerm_security_center_subscription_pricing" "sql" {
 }
 
 resource "azurerm_sentinel_log_analytics_workspace_onboarding" "main" {
-  count                                 = var.log_analytics_id != null ? 1 : 0
-  workspace_id                          = var.log_analytics_id
-  customer_managed_key_enabled          = false
+  count                        = var.log_analytics_id != null ? 1 : 0
+  workspace_id                 = var.log_analytics_id
+  customer_managed_key_enabled = false
 }
 
 resource "azurerm_resource_group_policy_assignment" "cis" {

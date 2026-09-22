@@ -1,7 +1,7 @@
 # Dribex on-prem production stack (Ubuntu)
-# Usage:
-#   cp env.prod.example .env.prod
-#   ./scripts/deploy.sh
+# Canonical deploy (from souq-local root):
+#   ./scripts/production-deploy.sh
+# Auxiliary rebuild (no migrations): infra/onprem/scripts/deploy.sh
 #
 # Public exposure: nginx (80/443) only.
 # Internal: postgres, redis, minio, vault, api, prometheus, grafana, loki.
@@ -205,6 +205,8 @@ services:
       - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/http.d:/etc/nginx/http.d:ro
+      - ./nginx/server.d/dribex-ma:/etc/nginx/server.d/dribex-ma:ro
       - ./nginx/certs:/etc/nginx/certs:ro
       - nginx_logs:/var/log/nginx
     depends_on:

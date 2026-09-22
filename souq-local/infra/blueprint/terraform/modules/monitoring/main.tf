@@ -2,7 +2,10 @@ variable "name_prefix" { type = string }
 variable "location" { type = string }
 variable "resource_group_name" { type = string }
 variable "environment_name" { type = string }
-variable "tags" { type = map(string); default = {} }
+variable "tags" {
+  type    = map(string)
+  default = {}
+}
 
 resource "azurerm_log_analytics_workspace" "main" {
   name                = "${var.name_prefix}-logs"

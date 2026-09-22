@@ -150,7 +150,7 @@ Release APK/AAB **guaranteed** to use `https://api.dribex.ma`:
 
 | Item | Status |
 |------|--------|
-| Repository default | Bootstrap self-signed if certs missing (`deploy.sh`) |
+| Repository default | Bootstrap self-signed if certs missing (auxiliary `infra/onprem/scripts/deploy.sh`) |
 | Public production requirement | Cloudflare Origin or Let's Encrypt |
 | Mobile trust | Requires publicly trusted cert — see `PUBLIC_TLS_SETUP.md` |
 
