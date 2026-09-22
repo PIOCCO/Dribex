@@ -119,6 +119,17 @@ Prometheus scrapes the API `/metrics` endpoint on the internal network.
 
 See `docker-compose.admin-tailscale.yml`. Binds admin UI to **`TAILSCALE_IP` only** — validated by `validate-compose-ports.sh`.
 
+## Temporary APIO demo (`/AIPO`)
+
+Optional Maison Maroc preview at **https://dribex.ma/AIPO/** — **not** started by `./scripts/production-deploy.sh`.
+
+```bash
+./scripts/aipo-demo-enable.sh   # build aipo-web + nginx routes
+./scripts/aipo-demo-disable.sh # stop and remove routes
+```
+
+Source: `../../sites/aipo/`. See `sites/aipo/README.md`.
+
 ## Teardown
 
 See [docs/TEARDOWN.md](docs/TEARDOWN.md) for stop/down/volume removal and firewall rollback.
