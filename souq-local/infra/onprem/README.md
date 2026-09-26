@@ -119,16 +119,19 @@ Prometheus scrapes the API `/metrics` endpoint on the internal network.
 
 See `docker-compose.admin-tailscale.yml`. Binds admin UI to **`TAILSCALE_IP` only** — validated by `validate-compose-ports.sh`.
 
-## Temporary APIO demo (`/AIPO`)
+## Production APIO (`/APIO`)
 
-Optional Maison Maroc preview at **https://dribex.ma/AIPO/** — **not** started by `./scripts/production-deploy.sh`.
+Full APIO (SPA + Express API) at **https://dribex.ma/APIO/** — **not** started by `./scripts/production-deploy.sh`.
 
-```bash
-./scripts/aipo-demo-enable.sh   # build aipo-web + nginx routes
-./scripts/aipo-demo-disable.sh # stop and remove routes
-```
+1. Sync **`../../apio/`** from Azelos `maisonmaroc` — see `../../apio/README.md`.
+2. `cp env.apio.prod.example .env.apio.prod` and set secrets + Google OAuth.
+3. `./scripts/apio-prod-deploy.sh`
 
-Source: `../../sites/aipo/`. See `sites/aipo/README.md`.
+Disable: `./scripts/apio-prod-disable.sh`
+
+## Legacy static demo (`/AIPO`)
+
+Old static-only preview under **`sites/aipo`** — use **`aipo-demo-disable.sh`** before enabling production `/APIO`.
 
 ## Teardown
 
