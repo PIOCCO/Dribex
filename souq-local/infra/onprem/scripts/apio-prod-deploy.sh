@@ -34,8 +34,10 @@ cp "$ROOT/nginx/snippets/apio-prod.server.conf" "$ROOT/nginx/server.d/dribex-ma/
 echo "==> Build APIO images"
 "${COMPOSE[@]}" --env-file "$DRIBEX_ENV" build apio-server apio-web
 
-echo "==> Start APIO + reload nginx"
-"${COMPOSE[@]}" --env-file "$DRIBEX_ENV" up -d apio-server apio-web nginx
+echo "==> Start APIO + recreate nginx (pick up /APIO routes)"
+"${COMPOSE[@]}" --env-file "$DRIBEX_ENV" up -d apio-server apio-web
+"${COMPOSE[@]}" --env-file "$DRIBEX_ENV" up -d --force-recreate nginx
+"${COMPOSE[@]}" --env-file "$DRIBEX_ENV" exec nginx nginx -s reload 2>/dev/null || true
 
 echo "APIO deployed:"
 echo "  https://dribex.ma/APIO/"
