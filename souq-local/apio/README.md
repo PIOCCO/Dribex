@@ -68,3 +68,27 @@ Deploy APIO:
 ## Data
 
 APIO uses its **own** database file on Docker volume `apio_data` (`/data/apio.sqlite`). It does **not** use Dribex Postgres.
+
+## Super-admin only on Tailscale (nginx)
+
+In `.env.apio.prod`:
+
+```env
+APIO_ADMIN_IP_ALLOWLIST=100.64.0.0/10,YOUR.OFFICE.IP.IF.ANY
+```
+
+Redeploy: `./scripts/apio-prod-deploy.sh`
+
+Blocked paths for everyone else (403): `/APIO/admin`, `/APIO/api/admin`, `/APIO/api/auth/admin`.
+
+**How to open admin:** connect **Tailscale** on your laptop/phone, then hit the **origin** so nginx sees a `100.x` address — not only the public Cloudflare URL.
+
+1. On the server: `tailscale ip -4` → e.g. `100.x.y.z`
+2. On a device with Tailscale on, browse:  
+   `https://100.x.y.z/APIO/admin/login`  
+   (certificate may warn unless you use a name that matches your cert — see below)
+3. Or add a **hosts** / split-DNS entry for a name on your cert that resolves to the **Tailscale IP** while on the tailnet.
+
+If `https://dribex.ma/APIO/admin` goes through **Cloudflare orange cloud**, nginx usually sees **Cloudflare’s IP**, not your Tailscale IP — the allowlist will **403**. Use direct Tailscale-to-origin access above, or Cloudflare Access for that path.
+
+Public client/owner pages at `/APIO/` stay open.

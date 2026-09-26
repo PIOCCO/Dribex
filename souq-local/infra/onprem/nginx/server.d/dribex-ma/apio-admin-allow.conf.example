@@ -1,0 +1,4 @@
+# Copy to apio-admin-allow.conf via apio-prod-deploy.sh (generated from .env.apio.prod).
+# One allow directive per line:
+allow 100.64.0.0/10;
+allow 127.0.0.1;

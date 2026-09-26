@@ -26,6 +26,8 @@ if [[ ! -f "$DRIBEX_ENV" ]]; then
 fi
 
 echo "==> Install nginx routes for /APIO"
+chmod +x "$ROOT/scripts/apio-write-admin-allowlist.sh"
+"$ROOT/scripts/apio-write-admin-allowlist.sh" "$ENV_FILE"
 cp "$ROOT/nginx/snippets/apio-prod.http.conf" "$ROOT/nginx/http.d/20-apio-prod.conf"
 cp "$ROOT/nginx/snippets/apio-prod.server.conf" "$ROOT/nginx/server.d/dribex-ma/20-apio-prod.conf"
 
