@@ -9,8 +9,10 @@
 #
 # Browser (device on Tailscale): http://${TAILSCALE_IP}:${APIO_ADMIN_PORT:-7217}/login
 #
-# Set in .env.prod (or export before compose):
-#   TAILSCALE_IP=100.x.y.z
+# Compose interpolates TAILSCALE_IP from the shell OR from a file named `.env` in this directory
+# (--env-file .env.prod does NOT substitute into compose YAML on some installs).
+# Either:  export TAILSCALE_IP=$(tailscale ip -4)
+# Or:      echo "TAILSCALE_IP=$(tailscale ip -4)" >> .env
 # And in .env.apio.prod:
 #   APIO_ADMIN_ALLOWED_NETWORKS=100.64.0.0/10,127.0.0.0/8
 

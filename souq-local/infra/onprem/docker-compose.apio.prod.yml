@@ -52,7 +52,8 @@ services:
       APIO_ADMIN_STATIC_DIR: /app/admin/dist
     volumes:
       - apio_data:/data
-    # Host publish: use docker-compose.apio-admin-tailscale.yml (same model as Dribex admin on 7215)
+    ports:
+      - "127.0.0.1:7217:7217"
     networks: [internal]
     depends_on:
       apio-server:
