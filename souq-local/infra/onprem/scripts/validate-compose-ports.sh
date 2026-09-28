@@ -36,7 +36,7 @@ check_compose_file() {
     fi
   fi
 
-  if [[ "$label" == "docker-compose.admin-tailscale.yml" ]]; then
+  if [[ "$label" == "docker-compose.admin-tailscale.yml" ]] || [[ "$label" == "docker-compose.apio-admin-tailscale.yml" ]]; then
     if rg -q '0\.0\.0\.0:\$\{ADMIN_PORT|0\.0\.0\.0:[0-9]+' "$compose" 2>/dev/null; then
       echo "FAIL [$label]: admin must bind to TAILSCALE_IP, not 0.0.0.0" >&2
       FAIL=1
@@ -50,6 +50,7 @@ check_compose_file() {
 
 check_compose_file "$ROOT/docker-compose.prod.yml" "docker-compose.prod.yml"
 check_compose_file "$ROOT/docker-compose.admin-tailscale.yml" "docker-compose.admin-tailscale.yml"
+check_compose_file "$ROOT/docker-compose.apio-admin-tailscale.yml" "docker-compose.apio-admin-tailscale.yml"
 
 if [[ "$FAIL" -ne 0 ]]; then
   exit 1

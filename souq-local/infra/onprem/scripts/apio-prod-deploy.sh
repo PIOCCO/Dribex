@@ -8,6 +8,17 @@ ENV_FILE="${APIO_ENV_FILE:-$ROOT/.env.apio.prod}"
 DRIBEX_ENV="${ENV_FILE_DRIBEX:-$ROOT/.env.prod}"
 
 COMPOSE=(docker compose -f "$ROOT/docker-compose.prod.yml" -f "$ROOT/docker-compose.apio.prod.yml")
+# shellcheck source=/dev/null
+set -a
+# TAILSCALE_IP for apio-admin host bind (see docker-compose.apio-admin-tailscale.yml)
+[[ -f "$DRIBEX_ENV" ]] && source "$DRIBEX_ENV"
+set +a
+if [[ -n "${TAILSCALE_IP:-}" ]]; then
+  COMPOSE+=(-f "$ROOT/docker-compose.apio-admin-tailscale.yml")
+else
+  echo "WARN: TAILSCALE_IP unset — apio-admin will not publish port 7217 on the host." >&2
+  echo "      Add TAILSCALE_IP=\$(tailscale ip -4) to .env.prod or export it, then redeploy." >&2
+fi
 
 if [[ ! -f "$ENV_FILE" ]]; then
   echo "Missing $ENV_FILE — copy from env.apio.prod.example" >&2
@@ -48,4 +59,7 @@ echo "==> Start APIO + recreate nginx (pick up /APIO routes)"
 echo "APIO deployed:"
 echo "  https://dribex.ma/APIO/"
 echo "  https://dribex.ma/APIO/api/health"
-echo "  Super-admin UI (Tailscale): http://127.0.0.1:7217/ on the host — see souq-local/apio/README.md"
+if [[ -n "${TAILSCALE_IP:-}" ]]; then
+  echo "  Super-admin UI: http://${TAILSCALE_IP}:${APIO_ADMIN_PORT:-7217}/login (Tailscale)"
+fi
+echo "  On-server check: curl -s http://127.0.0.1:${APIO_ADMIN_PORT:-7217}/api/health"

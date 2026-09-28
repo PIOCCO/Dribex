@@ -57,7 +57,7 @@ cd ~/MarGem/souq-local/infra/onprem
 ./scripts/apio-prod-deploy.sh
 ```
 
-This starts **`apio-server`**, **`apio-web`**, and **`apio-admin`**, and publishes admin on **`127.0.0.1:7217`** on the host.
+This starts **`apio-server`**, **`apio-web`**, and **`apio-admin`**. Admin is published on the host only when **`TAILSCALE_IP`** is set in `.env.prod` (same pattern as Dribex admin on port 7215).
 
 ## 4. Super-admin UI (Tailscale — not public `/APIO/admin`)
 
@@ -71,20 +71,29 @@ The public site at `https://dribex.ma/APIO/admin/*` intentionally shows **403** 
 
 Log in with **`SUPER_ADMIN_EMAIL`** / **`SUPER_ADMIN_PASSWORD`** from `.env.apio.prod`.
 
-## 5. Expose 7217 on Tailscale (pick one)
+## 5. Publish admin on Tailscale (recommended — same as Dribex admin)
 
-**Option A — Tailscale Serve (simplest on piocco):**
+In `.env.prod`:
 
-```bash
-tailscale serve --bg --http=7217 http://127.0.0.1:7217
-tailscale serve status
+```env
+TAILSCALE_IP=100.x.y.z   # output of: tailscale ip -4
 ```
 
-From a device on the tailnet: `http://100.x.y.z:7217/` (use `tailscale ip -4` on the server).
+Redeploy (or recreate admin only):
 
-**Option B — Host nginx** on the Tailscale IP: copy `nginx/snippets/apio-admin-tailscale.example.conf`, replace `TS_IP`, reload nginx.
+```bash
+export TAILSCALE_IP=$(tailscale ip -4)
+docker compose -f docker-compose.prod.yml \
+  -f docker-compose.apio.prod.yml \
+  -f docker-compose.apio-admin-tailscale.yml \
+  --env-file .env.prod up -d --force-recreate apio-admin
+```
 
-Do **not** expose port 7217 on the public WAN interface.
+From a device on the tailnet: **`http://100.x.y.z:7217/login`**
+
+Optional: `sudo tailscale set --operator=$USER` then `tailscale serve` — not required if Docker binds **`TAILSCALE_IP:7217`** directly.
+
+Do **not** publish `0.0.0.0:7217` on the public WAN.
 
 ## 6. Verify
 

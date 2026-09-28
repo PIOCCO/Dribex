@@ -1,0 +1,21 @@
+# Tailscale-only APIO super-admin (NOT public internet).
+#
+# Usage on piocco:
+#   export TAILSCALE_IP=$(tailscale ip -4)
+#   docker compose -f docker-compose.prod.yml \
+#     -f docker-compose.apio.prod.yml \
+#     -f docker-compose.apio-admin-tailscale.yml \
+#     --env-file .env.prod up -d --force-recreate apio-admin
+#
+# Browser (device on Tailscale): http://${TAILSCALE_IP}:${APIO_ADMIN_PORT:-7217}/login
+#
+# Set in .env.prod (or export before compose):
+#   TAILSCALE_IP=100.x.y.z
+# And in .env.apio.prod:
+#   APIO_ADMIN_ALLOWED_NETWORKS=100.64.0.0/10,127.0.0.0/8
+
+services:
+  apio-admin:
+    ports:
+      - "${TAILSCALE_IP:?set TAILSCALE_IP}:${APIO_ADMIN_PORT:-7217}:7217"
+      - "127.0.0.1:${APIO_ADMIN_PORT:-7217}:7217"
