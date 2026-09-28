@@ -1,0 +1,32 @@
+FROM node:20-bookworm-slim AS admin-ui
+WORKDIR /app
+COPY package.json package-lock.json* ./
+RUN npm ci --ignore-scripts
+COPY . .
+RUN npm run build:admin
+
+FROM node:20-bookworm-slim AS deps
+WORKDIR /app/server
+COPY server/package.json server/package-lock.json* ./
+RUN npm ci --omit=dev
+
+FROM node:20-bookworm-slim
+WORKDIR /app/server
+ENV NODE_ENV=production
+RUN apt-get update && apt-get install -y --no-install-recommends wget \
+  && rm -rf /var/lib/apt/lists/* \
+  && mkdir -p /data/uploads \
+  && chown -R node:node /data
+COPY --from=deps /app/server/node_modules ./node_modules
+COPY server/ ./
+COPY --from=admin-ui /app/admin/dist /app/admin/dist
+ENV DATABASE_PATH=/data/apio.sqlite
+ENV UPLOAD_DIR=/data/uploads
+ENV APIO_ADMIN_PORT=7217
+ENV APIO_ADMIN_BIND=0.0.0.0
+ENV APIO_ADMIN_STATIC_DIR=/app/admin/dist
+EXPOSE 7217
+USER node
+HEALTHCHECK --interval=15s --timeout=5s --retries=5 --start-period=25s \
+  CMD wget -qO- http://127.0.0.1:7217/api/health || exit 1
+CMD ["node", "src/adminIndex.js"]
