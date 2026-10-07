@@ -1,0 +1,17 @@
+# Force-publish apio-admin on the host (fixes "no public port 7217 published").
+#
+# Usage:
+#   cd ~/MarGem/souq-local/infra/onprem
+#   echo "TAILSCALE_IP=$(tailscale ip -4)" >> .env   # compose reads .env for ${TAILSCALE_IP}
+#   docker compose -f docker-compose.prod.yml \
+#     -f docker-compose.apio.prod.yml \
+#     -f docker-compose.apio-admin-hostports.yml \
+#     --env-file .env.prod up -d --force-recreate apio-admin
+#   docker port margem-prod-apio-admin-1 7217
+#   curl -s http://127.0.0.1:7217/api/health
+
+services:
+  apio-admin:
+    ports:
+      - "127.0.0.1:7217:7217"
+      - "${TAILSCALE_IP}:7217:7217"
