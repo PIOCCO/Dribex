@@ -187,7 +187,7 @@ curl -sI --interface tailscale0 "http://100.80.43.124:7218/login" | head -3
 
 Use `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` from `.env.apio.prod` on the **7217** login page, not Google client OAuth.
 
-## G. Crash: `getaddrinfo EAI_AGAIN apio-admin`
+## H. Crash: `getaddrinfo EAI_AGAIN apio-admin`
 
 **Cause:** `APIO_ADMIN_BIND=apio-admin` (hostname) in `.env.apio.prod`, or `depends_on: apio-server` with `network_mode: host` (no Docker DNS on host network).
 
