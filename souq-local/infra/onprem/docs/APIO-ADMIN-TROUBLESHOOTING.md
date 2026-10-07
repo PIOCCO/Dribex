@@ -171,8 +171,13 @@ Verify the container actually loaded it:
 
 ```bash
 docker exec margem-prod-apio-admin-1 printenv APIO_ADMIN_ALLOWED_NETWORKS
-docker compose -f docker-compose.prod.yml -f docker-compose.apio.prod.yml \
-  --env-file .env.prod up -d --force-recreate apio-admin
+./scripts/apio-admin-recreate.sh
+```
+
+Use **`--env-file .env.prod`** for compose (Dribex stack). **`--env-file .env.apio.prod` alone** fails with `MINIO_ROOT_USER` and does **not** reload `apio-admin`. APIO vars still load from `.env.apio.prod` via `env_file:` in compose.
+
+```bash
+docker logs margem-prod-apio-admin-1 2>&1 | grep admin_network_denied | tail -3
 ```
 
 **Note:** `APIO_ADMIN_IP_ALLOWLIST` is for **nginx** only — it does **not** affect `apio-admin`.
