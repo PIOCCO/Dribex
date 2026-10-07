@@ -1,6 +1,10 @@
 # Tailscale-only APIO super-admin (NOT public internet).
 #
-# Usage on piocco:
+# INCOMPATIBLE with `network_mode: host` in docker-compose.apio.prod.yml (current default).
+# With host + APIO_ADMIN_BIND=127.0.0.1, use instead:
+#   scripts/apio-admin-tailscale-serve.sh
+#
+# Usage on piocco (bridge network / published ports only):
 #   export TAILSCALE_IP=$(tailscale ip -4)
 #   docker compose -f docker-compose.prod.yml \
 #     -f docker-compose.apio.prod.yml \
