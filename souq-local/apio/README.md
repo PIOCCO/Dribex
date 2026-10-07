@@ -89,9 +89,14 @@ docker compose -f docker-compose.prod.yml \
   --env-file .env.prod up -d --force-recreate apio-admin
 ```
 
-From a device on the tailnet: **`http://100.x.y.z:7217/login`**
+From a device on the tailnet, expose loopback admin with **Tailscale Serve** (recommended with `network_mode: host`):
 
-Optional: `sudo tailscale set --operator=$USER` then `tailscale serve` — not required if Docker binds **`TAILSCALE_IP:7217`** directly.
+```bash
+sudo tailscale set --operator=$USER   # once
+tailscale serve --bg --http=7217 http://127.0.0.1:7217
+```
+
+Then open **`http://100.x.y.z:7217/login`**
 
 Do **not** publish `0.0.0.0:7217` on the public WAN.
 
