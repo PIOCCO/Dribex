@@ -68,25 +68,6 @@ APIO_ADMIN_ALLOWED_NETWORKS=100.64.0.0/10,127.0.0.0/8
 
 `https://dribex.ma/APIO/admin/login` → **403** by design (public SPA). Admin is only on **7217** (Tailscale / tunnel).
 
-## G. Crash: `getaddrinfo EAI_AGAIN apio-admin`
-
-**Cause:** `APIO_ADMIN_BIND=apio-admin` (hostname) in `.env.apio.prod`, or `depends_on: apio-server` with `network_mode: host` (no Docker DNS on host network).
-
-**Fix:**
-
-```env
-APIO_ADMIN_BIND=127.0.0.1
-```
-
-Remove `depends_on` under `apio-admin` when using `network_mode: host`. Recreate:
-
-```bash
-docker compose -f docker-compose.prod.yml -f docker-compose.apio.prod.yml \
-  --env-file .env.prod rm -sf apio-admin
-docker compose -f docker-compose.prod.yml -f docker-compose.apio.prod.yml \
-  --env-file .env.prod up -d --no-deps apio-admin
-```
-
 ## D. Logs say “listening”, browser shows Go **404 page not found** (black screen)
 
 That plain-text **404** is almost always **Tailscale Serve’s Go HTTP handler**, not `apio-admin` (Node would return JSON or HTML).
@@ -144,3 +125,22 @@ docker compose -f docker-compose.prod.yml -f docker-compose.apio.prod.yml \
 ## F. Super-admin login
 
 Use `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` from `.env.apio.prod` on the **7217** login page, not Google client OAuth.
+
+## G. Crash: `getaddrinfo EAI_AGAIN apio-admin`
+
+**Cause:** `APIO_ADMIN_BIND=apio-admin` (hostname) in `.env.apio.prod`, or `depends_on: apio-server` with `network_mode: host` (no Docker DNS on host network).
+
+**Fix:**
+
+```env
+APIO_ADMIN_BIND=127.0.0.1
+```
+
+Remove `depends_on` under `apio-admin` when using `network_mode: host`. Recreate:
+
+```bash
+docker compose -f docker-compose.prod.yml -f docker-compose.apio.prod.yml \
+  --env-file .env.prod rm -sf apio-admin
+docker compose -f docker-compose.prod.yml -f docker-compose.apio.prod.yml \
+  --env-file .env.prod up -d --no-deps apio-admin
+```
