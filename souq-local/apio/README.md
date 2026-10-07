@@ -110,6 +110,10 @@ curl -s http://127.0.0.1:7217/api/health
 
 APIO uses its **own** SQLite file on Docker volume `apio_data` (`/data/apio.sqlite`). It does **not** use Dribex Postgres. **`apio-server`** and **`apio-admin`** share that volume.
 
+## Outbound network (Google OAuth, SMTP)
+
+`apio-server` must join Docker network **`edge`** (see `docker-compose.apio.prod.yml`) so it can reach `www.googleapis.com` and your SMTP relay. **`internal` only** causes `EAI_AGAIN` / HTTP 500 on `POST /api/auth/google`.
+
 ## Env names (easy to confuse)
 
 | Variable | Where it applies |

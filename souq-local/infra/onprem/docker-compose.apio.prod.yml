@@ -15,7 +15,8 @@ services:
       PORT: 3001
     volumes:
       - apio_data:/data
-    networks: [internal]
+    # `internal` alone has no Internet — Google OAuth + SMTP need outbound HTTPS (same as Dribex `api` + `edge`).
+    networks: [internal, edge]
     deploy:
       resources:
         limits:
