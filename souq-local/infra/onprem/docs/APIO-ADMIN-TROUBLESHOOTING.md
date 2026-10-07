@@ -70,9 +70,11 @@ APIO_ADMIN_ALLOWED_NETWORKS=100.64.0.0/10,127.0.0.0/8
 
 ## D. Logs say “listening”, browser shows Go **404 page not found** (black screen)
 
-That plain-text **404** is almost always **Tailscale Serve’s Go HTTP handler**, not `apio-admin` (Node would return JSON or HTML).
+That plain-text **404** (`Content-Type: text/plain`, body **`404 page not found`**) is **Tailscale Serve on port 7217**, not `apio-admin`. Node returns HTML on `/login` with CSP headers.
 
-**Cause:** `apio-admin` uses **`network_mode: host`** and **`APIO_ADMIN_BIND=127.0.0.1`**, so it only listens on **loopback**. Hitting **`http://100.x.y.z:7217`** without a correct Serve (or SSH tunnel) does not reach Node.
+**Important:** Changing **`APIO_ADMIN_BIND`** to your **`100.x`** address **does not help** while Serve still owns **7217**. Serve answers first → same Go **404**. You must **`tailscale serve reset`** and then pick **one** exposure mode (below).
+
+**Cause (loopback bind):** `APIO_ADMIN_BIND=127.0.0.1` → only **`http://127.0.0.1:7217`** hits Node; **`http://100.x:7217`** needs Serve or SSH `-L`.
 
 **Check on piocco:**
 
@@ -107,6 +109,39 @@ tailscale serve status
 
 **Do not** add `docker-compose.apio-admin-tailscale.yml` **`ports:`** while **`network_mode: host`** is set in `docker-compose.apio.prod.yml` — Compose ignores/conflicts; use **Serve** or SSH `-L` instead.
 
+### Mode 1 — Recommended: loopback + Serve
+
+```env
+# .env.apio.prod
+APIO_ADMIN_BIND=127.0.0.1
+APIO_ADMIN_ALLOWED_NETWORKS=100.64.0.0/10,127.0.0.0/8
+```
+
+```bash
+tailscale serve reset
+tailscale serve --bg --http=7217 http://127.0.0.1:7217
+curl -sI http://100.x.y.z:7217/login | head -3   # expect 200
+```
+
+### Mode 2 — Direct bind on Tailscale IP (no Serve on 7217)
+
+```env
+APIO_ADMIN_BIND=100.80.43.124   # tailscale ip -4
+APIO_ADMIN_ALLOWED_NETWORKS=100.64.0.0/10,127.0.0.0/8
+```
+
+```bash
+tailscale serve reset    # required — do not run serve on 7217 in this mode
+docker compose -f docker-compose.prod.yml -f docker-compose.apio.prod.yml \
+  --env-file .env.prod up -d --force-recreate apio-admin
+docker logs margem-prod-apio-admin-1 --tail 3
+# must say listening on http://100.80.43.124:7217
+sudo ss -lntp | grep 7217
+curl -sI http://100.80.43.124:7217/login | head -3
+```
+
+**Check bind actually applied:** `docker-compose.apio.prod.yml` must **not** hardcode `APIO_ADMIN_BIND` in `environment:` (that overrides `.env.apio.prod`).
+
 ## E. Missing admin UI (empty/black page, loopback `/login` not HTML)
 
 ```bash
@@ -122,7 +157,33 @@ docker compose -f docker-compose.prod.yml -f docker-compose.apio.prod.yml \
   --env-file .env.prod up -d --force-recreate apio-admin
 ```
 
-## F. Super-admin login
+## F. `100.x:7217/7218` returns **403 Forbidden** (CSP headers present)
+
+You reached **`apio-admin`**; the **network guard** rejected the client IP (not Tailscale Serve).
+
+In `.env.apio.prod`:
+
+```env
+APIO_ADMIN_ALLOWED_NETWORKS=100.64.0.0/10,127.0.0.0/8
+```
+
+Verify the container actually loaded it:
+
+```bash
+docker exec margem-prod-apio-admin-1 printenv APIO_ADMIN_ALLOWED_NETWORKS
+docker compose -f docker-compose.prod.yml -f docker-compose.apio.prod.yml \
+  --env-file .env.prod up -d --force-recreate apio-admin
+```
+
+**Note:** `APIO_ADMIN_IP_ALLOWLIST` is for **nginx** only — it does **not** affect `apio-admin`.
+
+Testing from **piocco** to **`http://100.80.43.124:…`** can 403 if the kernel uses a source IP outside the allowlist. Prefer a browser on your **laptop (Tailscale)** or:
+
+```bash
+curl -sI --interface tailscale0 "http://100.80.43.124:7218/login" | head -3
+```
+
+## G. Super-admin login
 
 Use `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` from `.env.apio.prod` on the **7217** login page, not Google client OAuth.
 
