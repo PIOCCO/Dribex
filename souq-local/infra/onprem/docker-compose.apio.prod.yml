@@ -56,9 +56,7 @@ services:
     # Publish on loopback only (Tailscale: `tailscale serve --bg --http=7217 http://127.0.0.1:7217`).
     # Do NOT bind 100.x here — if that IP is missing at `up` time, Docker may publish NO ports at all.
     network_mode: host
-    depends_on:
-      apio-server:
-        condition: service_healthy
+    # No depends_on here: host network cannot resolve Docker service names (apio-server).
 
   # Do NOT add nginx depends_on apio-* here — if APIO is down, Dribex must still serve / over 443.
   # /APIO/* may 502 until apio-server/apio-web are healthy.

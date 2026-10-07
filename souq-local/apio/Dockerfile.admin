@@ -23,7 +23,7 @@ COPY --from=admin-ui /app/admin/dist /app/admin/dist
 ENV DATABASE_PATH=/data/apio.sqlite
 ENV UPLOAD_DIR=/data/uploads
 ENV APIO_ADMIN_PORT=7217
-ENV APIO_ADMIN_BIND=0.0.0.0
+ENV APIO_ADMIN_BIND=127.0.0.1
 ENV APIO_ADMIN_STATIC_DIR=/app/admin/dist
 EXPOSE 7217
 USER node
