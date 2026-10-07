@@ -188,11 +188,42 @@ Testing from **piocco** to **`http://100.80.43.124:…`** can 403 if the kernel 
 curl -sI --interface tailscale0 "http://100.80.43.124:7218/login" | head -3
 ```
 
-## G. Super-admin login
+## G. White screen / `ERR_SSL_PROTOCOL_ERROR` / HTTPS in iframe on **http://100.x:7218**
 
-Use `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` from `.env.apio.prod` on the **7217** login page, not Google client OAuth.
+**Cause:** Production Helmet CSP sends **`upgrade-insecure-requests`**. The browser rewrites asset URLs to **`https://100.x:7218/...`**, but admin only speaks **HTTP** on that port → white page.
 
-## H. Crash: `getaddrinfo EAI_AGAIN apio-admin`
+**Fix (on piocco):**
+
+```bash
+cd ~/MarGem/souq-local/infra/onprem
+chmod +x scripts/apio-patch-admin-http-security.sh
+./scripts/apio-patch-admin-http-security.sh
+```
+
+In **`.env.apio.prod`:**
+
+```env
+APIO_ADMIN_ALLOW_HTTP=true
+```
+
+Rebuild and recreate **apio-admin** (compose env file is **`.env.prod`**):
+
+```bash
+docker compose -f docker-compose.prod.yml -f docker-compose.apio.prod.yml \
+  --env-file .env.prod build apio-admin
+docker compose -f docker-compose.prod.yml -f docker-compose.apio.prod.yml \
+  --env-file .env.prod up -d --force-recreate apio-admin
+```
+
+Open **`http://100.80.43.124:7218/login`** (not `https://`). If the browser cached HSTS, use a private window or clear site data for `100.80.43.124`.
+
+**Alternative:** Terminate TLS with **`tailscale serve --https=7218 http://127.0.0.1:7218`** and use **`https://`** in the browser (keep `APIO_ADMIN_BIND=127.0.0.1`).
+
+## H. Super-admin login
+
+Use `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` from `.env.apio.prod` on the **7217/7218** login page, not Google client OAuth.
+
+## I. Crash: `getaddrinfo EAI_AGAIN apio-admin`
 
 **Cause:** `APIO_ADMIN_BIND=apio-admin` (hostname) in `.env.apio.prod`, or `depends_on: apio-server` with `network_mode: host` (no Docker DNS on host network).
 
