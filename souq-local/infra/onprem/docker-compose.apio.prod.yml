@@ -64,12 +64,8 @@ services:
           memory: 512M
           cpus: "0.5"
 
-  nginx:
-    depends_on:
-      apio-server:
-        condition: service_healthy
-      apio-web:
-        condition: service_healthy
+  # Do NOT add nginx depends_on apio-* here — if APIO is down, Dribex must still serve / over 443.
+  # /APIO/* may 502 until apio-server/apio-web are healthy.
 
 volumes:
   apio_data:
