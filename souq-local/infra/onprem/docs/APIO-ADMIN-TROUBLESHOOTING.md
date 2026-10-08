@@ -287,29 +287,32 @@ curl -sI --interface tailscale0 "http://100.80.43.124:7218/login" | head -3
 
 ## G. White screen / `ERR_SSL_PROTOCOL_ERROR` / HTTPS in iframe on **http://100.x:7218**
 
-**Cause:** Production Helmet CSP sends **`upgrade-insecure-requests`**. The browser rewrites asset URLs to **`https://100.x:7218/...`**, but admin only speaks **HTTP** on that port → white page.
+**Cause:** Production Helmet CSP sends **`upgrade-insecure-requests`**. The browser rewrites asset URLs to **`https://100.x:7218/...`**, but admin only speaks **HTTP** on that port → white page and console errors like **`ERR_SSL_PROTOCOL_ERROR`** / **https login loaded from http frame**.
+
+**Often after `./scripts/apio-admin-rebuild.sh`:** `apio-sync-source.sh` copied Azelos **`server/src/security.js`** without the **`APIO_ADMIN_ALLOW_HTTP`** guard — env var alone does nothing until the image is rebuilt with Dribex `security.js`.
+
+**Verify:**
+
+```bash
+./scripts/apio-admin-status.sh   # CSP section must say OK (no upgrade-insecure-requests)
+docker exec margem-prod-apio-admin-1 printenv APIO_ADMIN_ALLOW_HTTP
+curl -sI http://100.80.43.124:7218/login | tr -d '\r' | grep -i content-security-policy
+```
 
 **Fix (on piocco):**
 
-```bash
-cd ~/MarGem/souq-local/infra/onprem
-chmod +x scripts/apio-patch-admin-http-security.sh
-./scripts/apio-patch-admin-http-security.sh
-```
-
-In **`.env.apio.prod`:**
+In **`.env.apio.prod`** (you likely already have this):
 
 ```env
 APIO_ADMIN_ALLOW_HTTP=true
 ```
 
-Rebuild and recreate **apio-admin** (compose env file is **`.env.prod`**):
-
 ```bash
-docker compose -f docker-compose.prod.yml -f docker-compose.apio.prod.yml \
-  --env-file .env.prod build apio-admin
-docker compose -f docker-compose.prod.yml -f docker-compose.apio.prod.yml \
-  --env-file .env.prod up -d --force-recreate apio-admin
+cd ~/MarGem/souq-local/infra/onprem
+git pull origin cursor/apio-admin-i18n-8c79
+./scripts/apio-admin-rebuild.sh
+# or: apio-sync-source.sh + apio-patch-admin-http-security.sh, then compose build apio-admin
+./scripts/apio-admin-status.sh
 ```
 
 Open **`http://100.80.43.124:7218/login`** (not `https://`). If the browser cached HSTS, use a private window or clear site data for `100.80.43.124`.

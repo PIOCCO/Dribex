@@ -48,6 +48,7 @@ done
 echo "==> Overlay Dribex admin/i18n/UX files from git checkout (if tracked)"
 if git -C "$REPO_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   git -C "$REPO_ROOT" checkout HEAD -- \
+    souq-local/apio/server/src/security.js \
     souq-local/apio/admin/vite.config.ts \
     souq-local/apio/admin/src/main.tsx \
     souq-local/apio/admin/src/App.tsx \
@@ -61,7 +62,7 @@ if git -C "$REPO_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     souq-local/apio/src/pages/admin \
     souq-local/apio/src/components/admin \
     2>/dev/null || true
-  for rel in admin/src/main.tsx admin/src/App.tsx src/i18n/index.ts src/i18n/fr.ts src/i18n/ar.ts \
+  for rel in server/src/security.js admin/vite.config.ts admin/src/main.tsx admin/src/App.tsx src/vite-env.d.ts src/i18n/index.ts src/i18n/fr.ts src/i18n/ar.ts \
     src/index.css tailwind.config.js src/pages/AdminLoginPage.tsx; do
     if [[ -f "$REPO_ROOT/souq-local/apio/$rel" ]]; then
       mkdir -p "$APIO_ROOT/$(dirname "$rel")"
@@ -77,6 +78,9 @@ if git -C "$REPO_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
 fi
 
 rm -rf "$TMP"
+
+chmod +x "$ROOT/scripts/apio-patch-admin-http-security.sh" 2>/dev/null || true
+"$ROOT/scripts/apio-patch-admin-http-security.sh" || true
 
 echo "==> Verify layout"
 for req in package.json server/package.json server/src/adminIndex.js admin/vite.config.ts; do

@@ -20,6 +20,18 @@ fi
 echo
 echo "==> Env inside container"
 docker exec "$CID" printenv APIO_ADMIN_PORT APIO_ADMIN_BIND NODE_ENV 2>/dev/null || true
+ENV_FILE="$ROOT/.env.apio.prod"
+if [[ -f "$ENV_FILE" ]]; then
+  want_bind=$(grep -E '^APIO_ADMIN_BIND=' "$ENV_FILE" | tail -1 | cut -d= -f2-)
+  want_port=$(grep -E '^APIO_ADMIN_PORT=' "$ENV_FILE" | tail -1 | cut -d= -f2-)
+  got_bind=$(docker exec "$CID" printenv APIO_ADMIN_BIND 2>/dev/null || true)
+  got_port=$(docker exec "$CID" printenv APIO_ADMIN_PORT 2>/dev/null || true)
+  if [[ -n "$want_bind" && -n "$want_port" && ("$got_bind" != "$want_bind" || "$got_port" != "$want_port") ]]; then
+    echo
+    echo "MISMATCH: .env.apio.prod wants bind=$want_bind port=$want_port but container has bind=$got_bind port=$got_port"
+    echo "  Fix: git pull then ./scripts/apio-admin-restore-network.sh (compose must not override env_file with APIO_ADMIN_* defaults)"
+  fi
+fi
 
 echo
 echo "==> Recent logs"
@@ -34,6 +46,27 @@ echo "==> Loopback probe"
 for p in 7217 7218; do
   curl -sf --connect-timeout 2 "http://127.0.0.1:${p}/api/health" && echo " OK on 127.0.0.1:${p}" || echo " FAIL 127.0.0.1:${p}"
 done
+
+echo
+echo "==> CSP (plain HTTP admin must NOT send upgrade-insecure-requests)"
+probe_csp() {
+  local url="$1"
+  local csp
+  csp=$(curl -sI --connect-timeout 2 "$url" 2>/dev/null | tr -d '\r' | awk -F': ' 'tolower($1)=="content-security-policy"{print $2; exit}')
+  if [[ -z "$csp" ]]; then
+    echo "  $url → no Content-Security-Policy header"
+  elif [[ "$csp" == *"upgrade-insecure-requests"* ]]; then
+    echo "  $url → FAIL: CSP includes upgrade-insecure-requests (white screen / ERR_SSL on http://)"
+    echo "       Ensure APIO_ADMIN_ALLOW_HTTP=true in container and rebuild apio-admin (see docs/APIO-ADMIN-TROUBLESHOOTING.md §G)"
+  else
+    echo "  $url → OK (no upgrade-insecure-requests)"
+  fi
+}
+if [[ -n "$TS" ]]; then
+  probe_csp "http://${TS}:${PORT}/login"
+fi
+allow_http=$(docker exec "$CID" printenv APIO_ADMIN_ALLOW_HTTP 2>/dev/null || true)
+echo "  APIO_ADMIN_ALLOW_HTTP in container: ${allow_http:-<unset>}"
 
 if [[ -n "$TS" ]]; then
   echo

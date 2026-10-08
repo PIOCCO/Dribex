@@ -51,6 +51,9 @@ set_kv ADMIN_COOKIE_SAME_SITE "lax"
 
 echo "==> Recreate apio-admin (no rebuild unless you changed APIO source)"
 cd "$ROOT"
+# shellcheck source=scripts/apio-load-env.sh
+source "$ROOT/scripts/apio-load-env.sh"
+echo "Compose will use APIO_ADMIN_BIND=${APIO_ADMIN_BIND:-?} APIO_ADMIN_PORT=${APIO_ADMIN_PORT:-?}"
 docker compose -f docker-compose.prod.yml -f docker-compose.apio.prod.yml \
   --env-file "$DRIBEX_ENV" up -d --force-recreate apio-admin
 
@@ -61,6 +64,13 @@ echo
 echo "==> Probes"
 curl -sf "http://127.0.0.1:${PORT}/api/health" && echo " (127.0.0.1:${PORT} — may fail if bind is TS IP only)" || true
 curl -sf "http://${TS_IP}:${PORT}/api/health" && echo " (TS IP OK)" || echo "FAIL http://${TS_IP}:${PORT}/api/health"
+
+csp=$(curl -sI --connect-timeout 2 "http://${TS_IP}:${PORT}/login" 2>/dev/null | tr -d '\r' | awk -F': ' 'tolower($1)=="content-security-policy"{print $2; exit}')
+if [[ "$csp" == *"upgrade-insecure-requests"* ]]; then
+  echo
+  echo "WARN: CSP still has upgrade-insecure-requests → white screen on http://"
+  echo "  Run: ./scripts/apio-admin-rebuild.sh  (sync must keep server/src/security.js from Dribex)"
+fi
 
 echo
 echo "Open: http://${TS_IP}:${PORT}/login"
