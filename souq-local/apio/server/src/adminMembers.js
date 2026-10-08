@@ -14,26 +14,7 @@ function rejectMemberEscalation(body) {
   rejectForbiddenBodyFields(body, MEMBER_IMAGE_URL_FIELDS, "Profile images must be uploaded as files");
 }
 
-export function listMembersForAdmin(db, { q = "", status = "", sort = "created_desc" } = {}) {
-  let rows = db
-    .prepare(
-      `SELECT u.id, u.email, u.name, u.phone, u.status, u.owner_profile_id, u.created_at, u.updated_at
-       FROM users u WHERE u.role = 'REAL_ESTATE_OWNER'`,
-    )
-    .all();
-
-  if (status) rows = rows.filter((r) => r.status === status);
-  if (q) {
-    const qq = q.toLowerCase();
-    rows = rows.filter(
-      (r) =>
-        r.name.toLowerCase().includes(qq) ||
-        r.email.toLowerCase().includes(qq) ||
-        (r.owner_profile_id || "").toLowerCase().includes(qq),
-    );
-  }
-
-  const enriched = rows.map((r) => {
+function enrichMemberRow(db, r) {
     try {
       const profile = getMemberProfileById(db, r.owner_profile_id);
       let dbCount = 0;
@@ -66,7 +47,31 @@ export function listMembersForAdmin(db, { q = "", status = "", sort = "created_d
         lastActivity: r.updated_at,
       };
     }
-  });
+}
+
+export function listMembersForAdmin(db, { q = "", status = "", sort = "created_desc" } = {}) {
+  const baseRows = db
+    .prepare(
+      `SELECT u.id, u.email, u.name, u.phone, u.status, u.owner_profile_id, u.created_at, u.updated_at
+       FROM users u WHERE u.role = 'REAL_ESTATE_OWNER'`,
+    )
+    .all();
+
+  const total = baseRows.length;
+  let enriched = baseRows.map((r) => enrichMemberRow(db, r));
+
+  if (status) enriched = enriched.filter((r) => r.status === status);
+  if (q) {
+    const qq = q.toLowerCase();
+    enriched = enriched.filter(
+      (r) =>
+        (r.name || "").toLowerCase().includes(qq) ||
+        (r.email || "").toLowerCase().includes(qq) ||
+        (r.phone || "").toLowerCase().includes(qq) ||
+        (r.company || "").toLowerCase().includes(qq) ||
+        (r.owner_profile_id || "").toLowerCase().includes(qq),
+    );
+  }
 
   enriched.sort((a, b) => {
     if (sort === "name_asc") return (a.company || a.name).localeCompare(b.company || b.name);
@@ -74,7 +79,7 @@ export function listMembersForAdmin(db, { q = "", status = "", sort = "created_d
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
 
-  return enriched;
+  return { members: enriched, total };
 }
 
 export async function createMemberWithAccount(db, adminUser, body) {

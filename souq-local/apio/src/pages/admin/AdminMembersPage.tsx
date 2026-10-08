@@ -29,32 +29,38 @@ export default function AdminMembersPage() {
   const adminRoot = adminBase.replace(/\/$/, "") || "";
   const { t, lang } = useLocale();
   const [members, setMembers] = useState<MemberRow[]>([]);
+  const [totalMembers, setTotalMembers] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [q, setQ] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  /** Typed in the search box (does not filter until applied). */
+  const [searchInput, setSearchInput] = useState("");
+  /** Sent to the API — changing this refetches the list. */
+  const [appliedQ, setAppliedQ] = useState("");
+  const [appliedStatus, setAppliedStatus] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
 
   const fetchMembers = useCallback(async (opts?: { q?: string; status?: string }) => {
     setLoading(true);
     const params = new URLSearchParams();
-    const qq = opts?.q !== undefined ? opts.q : q;
-    const st = opts?.status !== undefined ? opts.status : statusFilter;
+    const qq = opts?.q !== undefined ? opts.q : appliedQ;
+    const st = opts?.status !== undefined ? opts.status : appliedStatus;
     if (qq) params.set("q", qq);
     if (st) params.set("status", st);
-    const { data, error: err } = await apiFetch<{ members: MemberRow[] }>(
+    const { data, error: err } = await apiFetch<{ members: MemberRow[]; total?: number }>(
       `/api/admin/members${params.toString() ? `?${params}` : ""}`,
     );
     setLoading(false);
     if (err) {
       setError(err);
       setMembers([]);
+      setTotalMembers(0);
     } else {
       setError(null);
       setMembers(data?.members ?? []);
+      setTotalMembers(typeof data?.total === "number" ? data.total : (data?.members?.length ?? 0));
     }
-  }, [q, statusFilter]);
+  }, [appliedQ, appliedStatus]);
 
   const reload = () => {
     void fetchMembers();
@@ -64,12 +70,19 @@ export default function AdminMembersPage() {
     void fetchMembers();
   }, [fetchMembers]);
 
-  const hasFilters = Boolean(q || statusFilter);
+  const hasFilters = Boolean(appliedQ || appliedStatus);
   const locale = lang === "fr" ? "fr-FR" : "ar-MA";
+  const isFiltered = hasFilters && members.length !== totalMembers;
+
+  const applySearch = () => {
+    setAppliedQ(searchInput.trim());
+  };
 
   const clearFilters = () => {
-    setQ("");
-    setStatusFilter("");
+    setSearchInput("");
+    setAppliedQ("");
+    setAppliedStatus("");
+    void fetchMembers({ q: "", status: "" });
   };
 
   const toggleStatus = async (member: MemberRow) => {
@@ -114,25 +127,39 @@ export default function AdminMembersPage() {
             <input
               className="input w-full ps-9 pe-9"
               placeholder={t("adminDash.searchMembers")}
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  applySearch();
+                }
+              }}
               aria-label={t("adminDash.searchMembers")}
             />
-            {q ? (
+            {searchInput ? (
               <button
                 type="button"
                 className="absolute end-2 top-1/2 -translate-y-1/2 rounded p-1 text-ink-400 hover:bg-ink-50"
-                onClick={() => setQ("")}
+                onClick={() => {
+                  setSearchInput("");
+                  if (appliedQ) {
+                    setAppliedQ("");
+                  }
+                }}
                 aria-label={t("adminDash.clearSearch")}
               >
                 <X size={14} aria-hidden />
               </button>
             ) : null}
           </div>
+          <button type="button" className="btn-outline sm:w-auto" onClick={applySearch}>
+            {t("adminDash.applySearch")}
+          </button>
           <select
             className="input sm:w-48"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            value={appliedStatus}
+            onChange={(e) => setAppliedStatus(e.target.value)}
             aria-label={t("adminDash.statusFilterLabel")}
           >
             <option value="">{t("adminDash.allStatuses")}</option>
@@ -141,13 +168,16 @@ export default function AdminMembersPage() {
           </select>
         </div>
         <p className="text-sm font-semibold text-ink-500">
-          {t("adminDash.memberCount", { count: members.length })}
+          {isFiltered
+            ? t("adminDash.memberCountFiltered", { shown: members.length, total: totalMembers })
+            : t("adminDash.memberCount", { count: totalMembers || members.length })}
         </p>
       </div>
 
       {hasFilters ? (
-        <div className="mb-3">
-          <button type="button" className="text-sm font-semibold text-brand-700 hover:underline" onClick={clearFilters}>
+        <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+          <span>{t("adminDash.filtersActiveHint")}</span>
+          <button type="button" className="font-semibold text-brand-700 hover:underline" onClick={clearFilters}>
             {t("adminDash.clearFilters")}
           </button>
         </div>
@@ -227,8 +257,9 @@ export default function AdminMembersPage() {
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         onCreated={(meta) => {
-          setQ("");
-          setStatusFilter("");
+          setSearchInput("");
+          setAppliedQ("");
+          setAppliedStatus("");
           void fetchMembers({ q: "", status: "" });
           setSuccess(
             meta?.alreadyExists ? t("adminDash.memberAlreadyCreated") : t("adminDash.memberCreatedSuccess"),

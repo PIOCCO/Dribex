@@ -354,6 +354,21 @@ Open **`http://100.80.43.124:7218/login`** (not `https://`). If the browser cach
 
 **Alternative:** Terminate TLS with **`tailscale serve --https=7218 http://127.0.0.1:7218`** and use **`https://`** in the browser (keep `APIO_ADMIN_BIND=127.0.0.1`).
 
+## H1. Member **exists** (409 / promotor login) but **not in admin list**
+
+**Common causes:**
+
+1. **Search or status filter** still active — the list API filters server-side. Older UI refetched on **every keystroke** in search (easy to end up with « 1 membre(s) » while more exist in the DB). Pull latest, rebuild **apio-admin**, then click **Réinitialiser les filtres** or **Rechercher** only when you mean to filter. The count line shows **« X affiché(s) sur Y au total »** when filters hide rows.
+2. **Two databases** — `apio-admin` and `apio-server` must share **`apio_data`** and `DATABASE_PATH=/data/apio.sqlite`.
+
+```bash
+cd ~/MarGem/souq-local/infra/onprem
+chmod +x scripts/apio-admin-list-members.sh
+./scripts/apio-admin-list-members.sh
+```
+
+Counts and emails should match on both containers.
+
 ## H2. **409 Conflict** on `POST /api/admin/members`
 
 **Meaning:** **`Email already in use`** — that address exists in `users` (member, client, Google account, or a failed retry after a partial create).
