@@ -29,7 +29,7 @@ curl -skI https://127.0.0.1/ -H 'Host: dribex.ma' | head -5
 | Cause | Fix |
 |--------|-----|
 | **nginx container down** | `docker compose -f docker-compose.prod.yml --env-file .env.prod up -d nginx api web` |
-| **api/web unhealthy** → nginx never started | `docker logs margem-prod-api-1 --tail 50`; `docker logs margem-prod-web-1 --tail 50`; fix env/DB, then `up -d` |
+| **api/web unhealthy** → nginx never started | `./scripts/dribex-api-diagnose.sh`; fix env/DB/migrations, then `up -d api web nginx` |
 | **Tailscale owns 443** | `tailscale serve reset` — see `docs/TAILSCALE_PUBLIC_COEXISTENCE.md` |
 | **Host reboot, compose not up** | `docker compose … up -d` (full stack or at least nginx+api+web) |
 | **APIO nginx snippet broken** | `docker logs margem-prod-nginx-1 --tail 30`; test `nginx -t` inside container; restore snippet from git |
