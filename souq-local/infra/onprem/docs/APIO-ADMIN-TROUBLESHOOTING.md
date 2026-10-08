@@ -1,5 +1,30 @@
 # APIO admin (7217) — when nothing works
 
+## 0b. Browser: **ERR_CONNECTION_REFUSED** on `100.x.x.x:7217|7218`
+
+Nothing is listening on that **IP:port** (different from 404/403).
+
+```bash
+cd ~/MarGem/souq-local/infra/onprem
+chmod +x scripts/apio-admin-status.sh
+./scripts/apio-admin-status.sh
+```
+
+| Symptom | Fix |
+|--------|-----|
+| Container **not running** / **Exited** | `docker logs margem-prod-apio-admin-1 --tail 50` then `docker compose … up -d apio-admin` |
+| **`APIO_ADMIN_BIND=127.0.0.1`** | Browser on **`100.x` will refuse** — use **`tailscale serve --bg --http=PORT http://127.0.0.1:PORT`** or set **`APIO_ADMIN_BIND=100.x`** in `.env.apio.prod` + recreate |
+| Wrong **port** in URL | Match **`APIO_ADMIN_PORT`** in `.env.apio.prod` (7217 vs 7218) |
+| **`tailscale serve reset`** left no listener | Re-run serve or direct bind on TS IP |
+
+After UI rebuild, always:
+
+```bash
+docker compose -f docker-compose.prod.yml -f docker-compose.apio.prod.yml \
+  --env-file .env.prod up -d --force-recreate apio-admin
+./scripts/apio-admin-status.sh
+```
+
 ## 0. Docker build: `"/server": not found` or `COPY server/` fails
 
 The **Docker build context** is `souq-local/apio/`. It must contain the **full maisonmaroc app**, not only `Dockerfile.admin`.
