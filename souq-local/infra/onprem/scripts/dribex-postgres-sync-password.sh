@@ -39,13 +39,21 @@ docker exec "$PG_CONTAINER" psql -U "$PG_USER" -d "$PG_DB" -v ON_ERROR_STOP=1 \
 echo "==> Restart api (and web/nginx if needed)"
 COMPOSE=(docker compose -f "$ROOT/docker-compose.prod.yml" --env-file "$ENV_FILE")
 "${COMPOSE[@]}" up -d api
-sleep 5
-if docker exec margem-prod-api-1 python -c "
+echo "==> Waiting for /ready (migrations can take 30–60s)..."
+ready=0
+for i in $(seq 1 45); do
+  if docker exec margem-prod-api-1 python -c "
 import urllib.request
 urllib.request.urlopen(urllib.request.Request('http://127.0.0.1:8000/ready', headers={'Host': 'api.dribex.ma'}))
-print('API ready OK')
 " 2>/dev/null; then
-  echo "==> API healthy — bring up web + nginx"
+    ready=1
+    echo "API ready OK (${i}s)"
+    break
+  fi
+  sleep 2
+done
+if [[ "$ready" -eq 1 ]]; then
+  echo "==> Bring up web + nginx"
   "${COMPOSE[@]}" up -d web nginx
 else
   echo "API still not ready — check: docker logs margem-prod-api-1 --tail 40" >&2
