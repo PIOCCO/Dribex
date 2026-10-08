@@ -5,7 +5,19 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APIO_ROOT="${APIO_ROOT:-$ROOT/../../apio}"
-REPO_ROOT="$(cd "$ROOT/../.." && pwd)"
+GIT_ROOT="$(git -C "$ROOT" rev-parse --show-toplevel 2>/dev/null || cd "$ROOT/../.." && pwd)"
+# Dribex layout: <git-root>/souq-local/apio — fallback: sibling apio/ next to infra/
+resolve_dribex_apio() {
+  local c
+  for c in "$GIT_ROOT/souq-local/apio" "$ROOT/../../apio"; do
+    if [[ -f "$c/admin/src/App.tsx" ]]; then
+      echo "$c"
+      return 0
+    fi
+  done
+  return 1
+}
+DRIBEX_APIO="$(resolve_dribex_apio || true)"
 AZELos_REPO="${AZELos_REPO:-https://github.com/PIOCCO/Azelos.git}"
 AZELos_BRANCH="${AZELos_BRANCH:-cursor/production-audit-3967}"
 TMP="${TMPDIR:-/tmp}/Azelos-apio-sync-$$"
@@ -40,47 +52,46 @@ preserve=(
   Dockerfile.admin Dockerfile.server Dockerfile.web nginx-default.conf .dockerignore
 )
 for f in "${preserve[@]}"; do
-  if [[ -f "$REPO_ROOT/souq-local/apio/$f" ]]; then
-    cp "$REPO_ROOT/souq-local/apio/$f" "$APIO_ROOT/$f"
+  if [[ -n "${DRIBEX_APIO:-}" && -f "$DRIBEX_APIO/$f" ]]; then
+    cp "$DRIBEX_APIO/$f" "$APIO_ROOT/$f"
   fi
 done
 
-echo "==> Overlay Dribex admin/i18n/UX files from git checkout (if tracked)"
-if git -C "$REPO_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  git -C "$REPO_ROOT" checkout HEAD -- \
-    souq-local/apio/server/src/security.js \
-    souq-local/apio/admin/vite.config.ts \
-    souq-local/apio/admin/src/main.tsx \
-    souq-local/apio/admin/src/App.tsx \
-    souq-local/apio/src/vite-env.d.ts \
-    souq-local/apio/src/i18n/index.ts \
-    souq-local/apio/src/i18n/fr.ts \
-    souq-local/apio/src/i18n/ar.ts \
-    souq-local/apio/src/index.css \
-    souq-local/apio/tailwind.config.js \
-    souq-local/apio/src/pages/AdminLoginPage.tsx \
-    souq-local/apio/src/pages/admin \
-    souq-local/apio/src/components/admin \
-    2>/dev/null || true
-  for rel in server/src/security.js admin/vite.config.ts admin/src/main.tsx admin/src/App.tsx src/vite-env.d.ts src/i18n/index.ts src/i18n/fr.ts src/i18n/ar.ts \
-    src/index.css tailwind.config.js src/pages/AdminLoginPage.tsx; do
-    if [[ -f "$REPO_ROOT/souq-local/apio/$rel" ]]; then
+echo "==> Overlay Dribex admin/i18n/UX from git checkout (replaces Azelos admin shell)"
+if [[ -z "${DRIBEX_APIO:-}" ]]; then
+  echo "WARN: No Dribex souq-local/apio in git checkout — Azelos admin UI will remain (raw i18n keys / old layout)" >&2
+  echo "      git pull cursor/apio-admin-i18n-8c79 on the host repo, then re-run." >&2
+elif git -C "$GIT_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  git -C "$GIT_ROOT" checkout HEAD -- souq-local/apio 2>/dev/null || true
+  DRIBEX_APIO="$(resolve_dribex_apio || echo "$DRIBEX_APIO")"
+fi
+if [[ -n "${DRIBEX_APIO:-}" && -d "$DRIBEX_APIO/admin/src" ]]; then
+  echo "    from $DRIBEX_APIO"
+  rm -rf "$APIO_ROOT/admin/src"
+  cp -a "$DRIBEX_APIO/admin/src" "$APIO_ROOT/admin/"
+  for rel in admin/vite.config.ts server/src/security.js src/vite-env.d.ts src/index.css tailwind.config.js \
+    src/pages/AdminLoginPage.tsx src/i18n/index.ts src/i18n/fr.ts src/i18n/ar.ts src/lib/useLocale.ts; do
+    if [[ -f "$DRIBEX_APIO/$rel" ]]; then
       mkdir -p "$APIO_ROOT/$(dirname "$rel")"
-      cp "$REPO_ROOT/souq-local/apio/$rel" "$APIO_ROOT/$rel"
+      cp "$DRIBEX_APIO/$rel" "$APIO_ROOT/$rel"
     fi
   done
-  if [[ -d "$REPO_ROOT/souq-local/apio/src/pages/admin" ]]; then
-    cp -a "$REPO_ROOT/souq-local/apio/src/pages/admin" "$APIO_ROOT/src/pages/"
-  fi
-  if [[ -d "$REPO_ROOT/souq-local/apio/src/components/admin" ]]; then
-    cp -a "$REPO_ROOT/souq-local/apio/src/components/admin" "$APIO_ROOT/src/components/"
-  fi
+  for dir in src/components/admin src/pages/admin; do
+    if [[ -d "$DRIBEX_APIO/$dir" ]]; then
+      mkdir -p "$APIO_ROOT/$(dirname "$dir")"
+      rm -rf "$APIO_ROOT/$dir"
+      cp -a "$DRIBEX_APIO/$dir" "$APIO_ROOT/$dir"
+    fi
+  done
 fi
 
 rm -rf "$TMP"
 
-chmod +x "$ROOT/scripts/apio-patch-admin-http-security.sh" 2>/dev/null || true
+chmod +x "$ROOT/scripts/apio-patch-admin-http-security.sh" "$ROOT/scripts/apio-patch-admin-i18n.sh" 2>/dev/null || true
+"$ROOT/scripts/apio-patch-admin-i18n.sh" || true
 "$ROOT/scripts/apio-patch-admin-http-security.sh" || true
+chmod +x "$ROOT/scripts/apio-verify-admin-ui.sh" 2>/dev/null || true
+"$ROOT/scripts/apio-verify-admin-ui.sh"
 
 echo "==> Verify layout"
 for req in package.json server/package.json server/src/adminIndex.js admin/vite.config.ts; do

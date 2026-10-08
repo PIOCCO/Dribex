@@ -285,6 +285,28 @@ Testing from **piocco** to **`http://100.80.43.124:…`** can 403 if the kernel 
 curl -sI --interface tailscale0 "http://100.80.43.124:7218/login" | head -3
 ```
 
+## G2. UI shows **`adminDash.*` / `nav.logout` keys** or **old top-tab layout** (no sidebar)
+
+**Cause:** Docker built from **Azelos-only** tree: missing `import "@shared/i18n"` in `admin/src/main.tsx` and/or old `admin/src/App.tsx`. Often because **`apio-sync-source.sh` did not overlay** `souq-local/apio` from the Dribex git checkout (wrong repo path on piocco).
+
+**Fix:**
+
+```bash
+cd ~/MarGem/souq-local/infra/onprem   # or your infra/onprem path
+git pull origin cursor/apio-admin-i18n-8c79
+./scripts/apio-admin-rebuild.sh
+./scripts/apio-verify-admin-ui.sh --container
+```
+
+**Expect after rebuild:** left **sidebar** (Membres / Projets / Contenu), French labels, footer **Version interface: &lt;git-sha&gt;**. Hard-refresh or private window.
+
+Manual check on disk before build:
+
+```bash
+grep '@shared/i18n' ../../apio/admin/src/main.tsx
+grep AdminLayout ../../apio/admin/src/App.tsx
+```
+
 ## G. White screen / `ERR_SSL_PROTOCOL_ERROR` / HTTPS in iframe on **http://100.x:7218**
 
 **Cause:** Production Helmet CSP sends **`upgrade-insecure-requests`**. The browser rewrites asset URLs to **`https://100.x:7218/...`**, but admin only speaks **HTTP** on that port → white page and console errors like **`ERR_SSL_PROTOCOL_ERROR`** / **https login loaded from http frame**.
