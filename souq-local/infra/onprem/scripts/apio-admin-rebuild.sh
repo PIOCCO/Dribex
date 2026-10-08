@@ -2,9 +2,23 @@
 # Sync APIO source, rebuild apio-admin image (no cache), recreate container — use when UI looks stale.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-REPO_ROOT="$(cd "$ROOT/../.." && pwd)"
+APIO_ROOT="$(cd "$ROOT/../../apio" && pwd)"
+GIT_ROOT="$(git -C "$ROOT" rev-parse --show-toplevel 2>/dev/null || cd "$ROOT/../.." && pwd)"
 DRIBEX_ENV="${ENV_FILE_DRIBEX:-$ROOT/.env.prod}"
-BUILD_ID="$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || date -u +%Y%m%dT%H%M%SZ)"
+BUILD_ID="$(git -C "$GIT_ROOT" rev-parse --short HEAD 2>/dev/null || date -u +%Y%m%dT%H%M%SZ)"
+
+load_apio_compose_env() {
+  if [[ -f "$ROOT/scripts/apio-load-env.sh" ]]; then
+    # shellcheck source=scripts/apio-load-env.sh
+    source "$ROOT/scripts/apio-load-env.sh"
+  elif [[ -f "$ROOT/.env.apio.prod" ]]; then
+    set -a
+    # shellcheck source=/dev/null
+    source "$ROOT/.env.apio.prod"
+    set +a
+    export APIO_ADMIN_PORT APIO_ADMIN_BIND APIO_ADMIN_ALLOWED_NETWORKS APIO_ADMIN_ALLOW_HTTP
+  fi
+}
 
 chmod +x "$ROOT/scripts/apio-sync-source.sh" "$ROOT/scripts/apio-verify-source.sh" "$ROOT/scripts/apio-verify-admin-ui.sh"
 "$ROOT/scripts/apio-sync-source.sh"
