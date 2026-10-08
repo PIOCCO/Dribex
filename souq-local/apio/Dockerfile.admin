@@ -1,5 +1,7 @@
 FROM node:20-bookworm-slim AS admin-ui
 WORKDIR /app
+ARG APIO_ADMIN_UI_BUILD=unknown
+ENV APIO_ADMIN_UI_BUILD=$APIO_ADMIN_UI_BUILD
 COPY package.json package-lock.json* ./
 RUN npm ci --ignore-scripts
 COPY . .

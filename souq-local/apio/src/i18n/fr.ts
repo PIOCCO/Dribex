@@ -476,6 +476,7 @@ export const fr: Dict = {
     memberCreatedSuccess: "Membre créé avec succès.",
     errorGenericTitle: "Impossible de charger les données",
     tryAgain: "Réessayer",
+    uiBuild: "Version interface",
     allStatuses: "Tous les statuts",
     backToMembers: "Retour aux membres",
     memberProjects: "Projets du membre",

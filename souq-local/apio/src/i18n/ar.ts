@@ -469,6 +469,7 @@ export const ar = {
     memberCreatedSuccess: "تم إنشاء العضو بنجاح.",
     errorGenericTitle: "تعذّر تحميل البيانات",
     tryAgain: "إعادة المحاولة",
+    uiBuild: "إصدار الواجهة",
     allStatuses: "كل الحالات",
     backToMembers: "العودة للأعضاء",
     memberProjects: "مشاريع العضو",

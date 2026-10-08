@@ -84,6 +84,9 @@ export default function AdminLayout({ adminBase = "/" }: AdminLayoutProps) {
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
           <Outlet context={{ adminBase: base }} />
         </main>
+        <footer className="border-t border-ink-100 px-4 py-2 text-center text-[10px] font-medium text-ink-400 sm:px-6">
+          {t("adminDash.uiBuild")}: <span dir="ltr">{__ADMIN_UI_BUILD__}</span>
+        </footer>
       </div>
     </div>
   );

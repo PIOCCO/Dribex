@@ -18,6 +18,35 @@ docker compose -f docker-compose.prod.yml -f docker-compose.apio.prod.yml \
 
 Optional: `AZELos_BRANCH=cursor/production-audit-3967 ./scripts/apio-sync-source.sh`
 
+### UI still looks old after browser refresh
+
+Refreshing the browser **does not** update the admin SPA — it is **baked into the Docker image** at `npm run build:admin`. You must **rebuild and recreate** `apio-admin`.
+
+```bash
+cd ~/MarGem/souq-local
+git pull origin cursor/apio-admin-i18n-8c79
+
+cd infra/onprem
+./scripts/apio-admin-rebuild.sh
+```
+
+Then open a **private/incognito** window (or hard refresh `Ctrl+Shift+R`).
+
+**New UI checklist** — you should see:
+
+- **Left sidebar** (Members / Projects / Content) on desktop
+- Page title **Membres** with description (not only `adminDash.title` at top)
+- Footer line **Version interface: &lt;git-sha&gt;**
+
+If footer/version is missing or keys are still raw, run:
+
+```bash
+ls ~/MarGem/souq-local/apio/src/components/admin/layout/AdminLayout.tsx
+git -C ~/MarGem/souq-local log -1 --oneline
+./scripts/apio-sync-source.sh
+./scripts/apio-admin-rebuild.sh
+```
+
 ## What you should see when it works
 
 ```bash
