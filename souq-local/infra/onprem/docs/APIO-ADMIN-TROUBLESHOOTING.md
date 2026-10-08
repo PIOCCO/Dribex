@@ -287,7 +287,7 @@ curl -sI --interface tailscale0 "http://100.80.43.124:7218/login" | head -3
 
 ## G2. UI shows **`adminDash.*` / `nav.logout` keys** or **old top-tab layout** (no sidebar)
 
-**Cause:** Docker built from **Azelos-only** tree: missing `import "@shared/i18n"` in `admin/src/main.tsx` and/or old `admin/src/App.tsx`. Often because **`apio-sync-source.sh` did not overlay** `souq-local/apio` from the Dribex git checkout (wrong repo path on piocco).
+**Cause:** Docker built from **Azelos-only** tree: missing `import "@shared/i18n"` in `admin/src/main.tsx` and/or old `admin/src/App.tsx`. **`apio-sync-source.sh` extracts Azelos over `../../apio`**, then must **`git checkout`** Dribex admin files. It used to fail with `cp: ... are the same file` (overlay never ran) or wrong path `souq-local/apio` on a checkout where git tracks `apio/` only.
 
 **Fix:**
 
