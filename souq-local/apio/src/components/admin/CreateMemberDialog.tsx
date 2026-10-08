@@ -3,10 +3,12 @@ import { Plus, X } from "lucide-react";
 import { useLocale } from "../../lib/useLocale";
 import { apiFetch } from "../../lib/api";
 
+type CreatedMeta = { alreadyExists?: boolean };
+
 type Props = {
   open: boolean;
   onClose: () => void;
-  onCreated: () => void;
+  onCreated: (meta?: CreatedMeta) => void;
 };
 
 const initialForm = {

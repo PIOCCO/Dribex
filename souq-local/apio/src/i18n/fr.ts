@@ -476,6 +476,8 @@ export const fr: Dict = {
     memberCreatedSuccess: "Membre créé avec succès.",
     emailAlreadyInUse:
       "Cet e-mail est déjà utilisé (membre, client ou autre compte). Recherchez-le dans la liste ou utilisez une autre adresse.",
+    memberAlreadyCreated:
+      "Ce membre existe déjà (création précédente réussie). La liste a été mise à jour.",
     errorGenericTitle: "Impossible de charger les données",
     tryAgain: "Réessayer",
     uiBuild: "Version interface",

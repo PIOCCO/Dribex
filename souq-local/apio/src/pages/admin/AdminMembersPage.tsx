@@ -220,10 +220,12 @@ export default function AdminMembersPage() {
       <CreateMemberDialog
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        onCreated={() => {
-          setSuccess(t("adminDash.memberCreatedSuccess"));
+        onCreated={(meta) => {
           load();
-          window.setTimeout(() => setSuccess(null), 4000);
+          setSuccess(
+            meta?.alreadyExists ? t("adminDash.memberAlreadyCreated") : t("adminDash.memberCreatedSuccess"),
+          );
+          window.setTimeout(() => setSuccess(null), 5000);
         }}
       />
     </>

@@ -469,6 +469,7 @@ export const ar = {
     memberCreatedSuccess: "تم إنشاء العضو بنجاح.",
     emailAlreadyInUse:
       "هذا البريد مستخدم بالفعل (عضو أو عميل أو حساب آخر). ابحث في القائمة أو استخدم بريداً آخر.",
+    memberAlreadyCreated: "العضو موجود بالفعل (تم إنشاؤه سابقاً). تم تحديث القائمة.",
     errorGenericTitle: "تعذّر تحميل البيانات",
     tryAgain: "إعادة المحاولة",
     uiBuild: "إصدار الواجهة",
