@@ -479,6 +479,12 @@ export const fr: Dict = {
     memberCreatedSuccess: "Membre créé avec succès.",
     emailAlreadyInUse:
       "Cet e-mail est déjà utilisé (membre, client ou autre compte). Recherchez-le dans la liste ou utilisez une autre adresse.",
+    emailTakenRole_CLIENT:
+      "Cet e-mail appartient déjà à un compte client (inscription sur le site public). Utilisez une autre adresse pour le membre / promoteur.",
+    emailTakenRole_SUPER_ADMIN:
+      "Cet e-mail est réservé au compte super-admin. Utilisez une autre adresse pour le membre.",
+    emailTakenRole_REAL_ESTATE_OWNER:
+      "Ce membre existe déjà avec cet e-mail. Consultez la liste des membres (réinitialisez les filtres si besoin).",
     memberAlreadyCreated:
       "Ce membre existe déjà (création précédente réussie). La liste a été mise à jour.",
     errorGenericTitle: "Impossible de charger les données",

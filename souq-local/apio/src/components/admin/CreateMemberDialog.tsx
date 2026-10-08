@@ -11,6 +11,13 @@ type Props = {
   onCreated: (meta?: CreatedMeta) => void;
 };
 
+function emailTakenMessage(t: (key: string) => string, role: string) {
+  if (role === "CLIENT") return t("adminDash.emailTakenRole_CLIENT");
+  if (role === "SUPER_ADMIN") return t("adminDash.emailTakenRole_SUPER_ADMIN");
+  if (role === "REAL_ESTATE_OWNER") return t("adminDash.emailTakenRole_REAL_ESTATE_OWNER");
+  return t("adminDash.emailAlreadyInUse");
+}
+
 const initialForm = {
   email: "",
   password: "",
@@ -29,6 +36,7 @@ export default function CreateMemberDialog({ open, onClose, onCreated }: Props) 
   const [form, setForm] = useState(initialForm);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const submitLock = useRef(false);
 
   useEffect(() => {
     const el = dialogRef.current;
@@ -46,33 +54,76 @@ export default function CreateMemberDialog({ open, onClose, onCreated }: Props) 
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitLock.current || submitting) return;
+    submitLock.current = true;
     setError(null);
     setSubmitting(true);
-    const { error: err, status, code } = await apiFetch("/api/admin/members", {
-      method: "POST",
-      body: JSON.stringify({
-        email: form.email,
-        password: form.password,
-        name: form.name,
-        phone: form.phone || undefined,
-        companyFr: form.companyFr,
-        companyAr: form.companyAr,
-        cityId: form.cityId,
-        contactPosition: form.contactPosition || undefined,
-        status: "ACTIVE",
-      }),
-    });
-    setSubmitting(false);
-    if (err) {
-      if (status === 409 || code === "EMAIL_TAKEN" || /already in use/i.test(err)) {
-        setError(t("adminDash.emailAlreadyInUse"));
-      } else {
-        setError(err);
+    const emailNorm = form.email.trim().toLowerCase();
+    try {
+      const { error: err, status, code, existingRole, existingMemberId } = await apiFetch(
+        "/api/admin/members",
+        {
+        method: "POST",
+        body: JSON.stringify({
+          email: emailNorm,
+          password: form.password,
+          name: form.name,
+          phone: form.phone || undefined,
+          companyFr: form.companyFr,
+          companyAr: form.companyAr,
+          cityId: form.cityId,
+          contactPosition: form.contactPosition || undefined,
+          status: "ACTIVE",
+        }),
+      },
+      );
+      if (err) {
+        if (status === 409 || code === "EMAIL_TAKEN" || /already in use/i.test(err)) {
+          if (existingRole === "REAL_ESTATE_OWNER" && existingMemberId) {
+            onCreated({ alreadyExists: true });
+            onClose();
+            return;
+          }
+          if (existingRole && existingRole !== "REAL_ESTATE_OWNER") {
+            setError(emailTakenMessage(t, existingRole));
+            return;
+          }
+          const listed = await apiFetch<{ members: { email: string }[] }>(
+            `/api/admin/members?q=${encodeURIComponent(emailNorm)}`,
+          );
+          const exists = listed.data?.members?.some(
+            (m) => m.email.trim().toLowerCase() === emailNorm,
+          );
+          if (exists) {
+            onCreated({ alreadyExists: true });
+            onClose();
+            return;
+          }
+          const lookup = await apiFetch<{ found?: boolean; user?: { role: string } }>(
+            `/api/admin/users/lookup?email=${encodeURIComponent(emailNorm)}`,
+          );
+          if (lookup.data?.found && lookup.data.user?.role) {
+            const role = lookup.data.user.role;
+            if (role === "REAL_ESTATE_OWNER") {
+              onCreated({ alreadyExists: true });
+              onClose();
+              return;
+            }
+            setError(emailTakenMessage(t, role));
+            return;
+          }
+          setError(t("adminDash.emailAlreadyInUse"));
+        } else {
+          setError(err);
+        }
+        return;
       }
-      return;
+      onCreated();
+      onClose();
+    } finally {
+      setSubmitting(false);
+      submitLock.current = false;
     }
-    onCreated();
-    onClose();
   };
 
   return (

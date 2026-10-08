@@ -5,11 +5,28 @@ import {
   patchMemberByAdmin,
 } from "./adminMembers.js";
 import { listMemberProjectsForAdmin, adminUpdateMemberProject, adminDeleteMemberProject } from "./adminProjects.js";
-import { sanitizeUser } from "./auth.js";
+import { findUserByEmail, sanitizeUser } from "./auth.js";
+import { normalizeAdminEmail } from "./adminMembers.js";
 import { handleAuthError } from "./middleware.js";
 import { validateUuid } from "./validateIds.js";
 
 export function registerAdminMemberRoutes(app, db, { requireAuth, requireSuperAdmin, adminMutationLimiter }) {
+  app.get("/api/admin/users/lookup", requireAuth, requireSuperAdmin, (req, res) => {
+    const email = normalizeAdminEmail(req.query.email);
+    if (!email) return res.status(400).json({ error: "email query parameter required" });
+    const row = findUserByEmail(db, email);
+    if (!row) return res.json({ found: false });
+    res.json({
+      found: true,
+      user: {
+        id: row.id,
+        email: row.email,
+        role: row.role,
+        status: row.status,
+      },
+    });
+  });
+
   app.get("/api/admin/members", requireAuth, requireSuperAdmin, (req, res) => {
     const q = String(req.query.q || "").slice(0, 100);
     const status = String(req.query.status || "").slice(0, 20);

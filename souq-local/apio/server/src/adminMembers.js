@@ -9,6 +9,27 @@ import { PRIVILEGED_ESCALATION_FIELDS, rejectForbiddenBodyFields } from "./secur
 
 const MEMBER_IMAGE_URL_FIELDS = ["logoUrl", "logo_url", "avatarUrl", "avatar_url"];
 
+/** Login email normalization (admin create + lookup). */
+export function normalizeAdminEmail(email) {
+  return String(email || "")
+    .normalize("NFKC")
+    .trim()
+    .toLowerCase();
+}
+
+function rejectEmailTaken(db, normalizedEmail, { excludeUserId } = {}) {
+  const existing = findUserByEmail(db, normalizedEmail);
+  if (!existing || existing.id === excludeUserId) return;
+  const err = new Error("Email already in use");
+  err.status = 409;
+  err.code = "EMAIL_TAKEN";
+  err.existingRole = existing.role;
+  if (existing.role === ROLES.REAL_ESTATE_OWNER) {
+    err.existingMemberId = existing.id;
+  }
+  throw err;
+}
+
 function rejectMemberEscalation(body) {
   rejectForbiddenBodyFields(body, PRIVILEGED_ESCALATION_FIELDS);
   rejectForbiddenBodyFields(body, MEMBER_IMAGE_URL_FIELDS, "Profile images must be uploaded as files");
@@ -85,9 +106,7 @@ export function listMembersForAdmin(db, { q = "", status = "", sort = "created_d
 export async function createMemberWithAccount(db, adminUser, body) {
   rejectMemberEscalation(body);
   const { email, password, name, phone, status, linkExistingProfileId, ...profileFields } = body || {};
-  const normalizedEmail = String(email || "")
-    .trim()
-    .toLowerCase();
+  const normalizedEmail = normalizeAdminEmail(email);
   if (!normalizedEmail || !password || !name) {
     const err = new Error("Email, password, and contact name are required");
     err.status = 400;
@@ -98,12 +117,7 @@ export async function createMemberWithAccount(db, adminUser, body) {
     err.status = 400;
     throw err;
   }
-  if (findUserByEmail(db, normalizedEmail)) {
-    const err = new Error("Email already in use");
-    err.status = 409;
-    err.code = "EMAIL_TAKEN";
-    throw err;
-  }
+  rejectEmailTaken(db, normalizedEmail);
 
   let ownerProfileId = linkExistingProfileId ? String(linkExistingProfileId).trim() : null;
   if (ownerProfileId && !getMemberProfileById(db, ownerProfileId)) {
@@ -133,18 +147,26 @@ export async function createMemberWithAccount(db, adminUser, body) {
   }
 
   const nowIso = new Date().toISOString();
-  const userRow = createUser(db, {
-    email: normalizedEmail,
-    passwordHash: hashPassword(password),
-    name: String(name).trim(),
-    phone: phone ? String(phone) : null,
-    role: ROLES.REAL_ESTATE_OWNER,
-    status: status === "DISABLED" ? "DISABLED" : "ACTIVE",
-    ownerProfileId,
-    authProvider: "local",
-    // Super-admin created accounts can log in immediately (no inbox verification gate).
-    emailVerifiedAt: nowIso,
-  });
+  let userRow;
+  try {
+    userRow = createUser(db, {
+      email: normalizedEmail,
+      passwordHash: hashPassword(password),
+      name: String(name).trim(),
+      phone: phone ? String(phone) : null,
+      role: ROLES.REAL_ESTATE_OWNER,
+      status: status === "DISABLED" ? "DISABLED" : "ACTIVE",
+      ownerProfileId,
+      authProvider: "local",
+      // Super-admin created accounts can log in immediately (no inbox verification gate).
+      emailVerifiedAt: nowIso,
+    });
+  } catch (e) {
+    if (e?.code === "SQLITE_CONSTRAINT_UNIQUE") {
+      rejectEmailTaken(db, normalizedEmail);
+    }
+    throw e;
+  }
 
   logAdminAction(db, {
     adminUserId: adminUser.id,
@@ -245,13 +267,8 @@ export function patchMemberByAdmin(db, adminUser, userId, body) {
       vals.push(body.phone ? String(body.phone).slice(0, 32) : null);
     }
     if (body.email !== undefined) {
-      const email = String(body.email).trim().toLowerCase();
-      if (findUserByEmail(db, email) && findUserByEmail(db, email).id !== userId) {
-        const err = new Error("Email already in use");
-        err.status = 409;
-        err.code = "EMAIL_TAKEN";
-        throw err;
-      }
+      const email = normalizeAdminEmail(body.email);
+      rejectEmailTaken(db, email, { excludeUserId: userId });
       sets.push("email = ?");
       vals.push(email);
     }

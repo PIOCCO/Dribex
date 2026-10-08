@@ -12,6 +12,7 @@ const { openDb, migrate } = await import("../src/db.js");
 const { listMembersForAdmin } = await import("../src/adminMembers.js");
 const { createUser, hashPassword, ROLES } = await import("../src/auth.js");
 const { createMemberProfile } = await import("../src/memberProfiles.js");
+const { createMemberWithAccount } = await import("../src/adminMembers.js");
 
 const db = openDb();
 migrate(db);
@@ -55,5 +56,37 @@ assert("search matches company", byCompany.members.length === 1 && byCompany.tot
 
 const activeOnly = listMembersForAdmin(db, { status: "ACTIVE" });
 assert("status filter keeps total", activeOnly.members.length === 3 && activeOnly.total === 3);
+
+createUser(db, {
+  email: "client@example.com",
+  passwordHash: hashPassword("password12345"),
+  name: "Site Client",
+  role: ROLES.CLIENT,
+  status: "ACTIVE",
+  authProvider: "local",
+  emailVerifiedAt: new Date().toISOString(),
+});
+
+const adminUser = createUser(db, {
+  email: "admin@example.com",
+  passwordHash: hashPassword("password12345"),
+  name: "Admin",
+  role: ROLES.SUPER_ADMIN,
+  status: "ACTIVE",
+  authProvider: "local",
+});
+
+let clientBlockOk = false;
+try {
+  await createMemberWithAccount(db, adminUser, {
+    email: "client@example.com",
+    password: "password12345",
+    name: "Should Fail",
+    companyFr: "X",
+  });
+} catch (e) {
+  clientBlockOk = e.status === 409 && e.code === "EMAIL_TAKEN" && e.existingRole === "CLIENT";
+}
+assert("409 when email belongs to CLIENT (not shown in member list)", clientBlockOk);
 
 console.log("admin members list regression passed");

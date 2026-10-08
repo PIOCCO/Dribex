@@ -59,7 +59,14 @@ async function parseJson(res: Response) {
 export async function apiFetch<T>(
   path: string,
   init: RequestInit = {},
-): Promise<{ data?: T; error?: string; status: number; code?: string }> {
+): Promise<{
+  data?: T;
+  error?: string;
+  status: number;
+  code?: string;
+  existingRole?: string;
+  existingMemberId?: string;
+}> {
   const root = apiRoot();
   if (apiUnreachable && !root && typeof window === "undefined") {
     return { error: "Network error", status: 0 };
@@ -91,7 +98,15 @@ export async function apiFetch<T>(
         body && typeof (body as { code?: string }).code === "string"
           ? (body as { code: string }).code
           : undefined;
-      return { error: err, status: res.status, code };
+      const existingRole =
+        body && typeof (body as { existingRole?: string }).existingRole === "string"
+          ? (body as { existingRole: string }).existingRole
+          : undefined;
+      const existingMemberId =
+        body && typeof (body as { existingMemberId?: string }).existingMemberId === "string"
+          ? (body as { existingMemberId: string }).existingMemberId
+          : undefined;
+      return { error: err, status: res.status, code, existingRole, existingMemberId };
     }
     return { data: body as T, status: res.status };
   } catch {

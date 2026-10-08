@@ -141,5 +141,7 @@ export function handleAuthError(err, res) {
   if (status >= 500) console.error(err);
   const payload = { error: message };
   if (err.code && status < 500) payload.code = err.code;
+  if (err.existingRole && status === 409) payload.existingRole = err.existingRole;
+  if (err.existingMemberId && status === 409) payload.existingMemberId = err.existingMemberId;
   res.status(status).json(payload);
 }

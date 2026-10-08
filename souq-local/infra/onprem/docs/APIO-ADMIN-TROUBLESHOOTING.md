@@ -371,7 +371,19 @@ Counts and emails should match on both containers.
 
 ## H2. **409 Conflict** on `POST /api/admin/members`
 
-**Meaning:** **`Email already in use`** — that address exists in `users` (member, client, Google account, or a failed retry after a partial create).
+**Meaning:** **`Email already in use`** — that address exists in `users`. The **members list only shows `REAL_ESTATE_OWNER`**, so you can see **one membre** in the UI while the same e-mail is already taken by a **CLIENT** (public signup on `https://dribex.ma/APIO/client/login`), **SUPER_ADMIN**, or Google login.
+
+After pulling latest admin server + UI, the form shows **which role** holds the e-mail. On piocco:
+
+```bash
+docker exec margem-prod-apio-admin-1 node -e "
+const Database=require('better-sqlite3');
+const db=new Database(process.env.DATABASE_PATH||'/data/apio.sqlite',{readonly:true});
+console.log(db.prepare('SELECT email, role, status FROM users ORDER BY created_at').all());
+"
+```
+
+Or `./scripts/apio-admin-list-members.sh` (prints **allUsers** and **owners**).
 
 **On piocco:**
 

@@ -11,8 +11,9 @@ sql() {
 const Database=require('better-sqlite3');
 const p=process.env.DATABASE_PATH||'/data/apio.sqlite';
 const db=new Database(p,{readonly:true});
-const rows=db.prepare(\"SELECT email, role, status, owner_profile_id FROM users WHERE role='REAL_ESTATE_OWNER' ORDER BY created_at DESC LIMIT 20\").all();
-console.log(JSON.stringify({db:p,count:rows.length,rows},null,2));
+const owners=db.prepare(\"SELECT email, role, status, owner_profile_id FROM users WHERE role='REAL_ESTATE_OWNER' ORDER BY created_at DESC LIMIT 20\").all();
+const all=db.prepare(\"SELECT email, role, status FROM users ORDER BY created_at DESC LIMIT 30\").all();
+console.log(JSON.stringify({db:p,ownerCount:owners.length,owners,allUserCount:all.length,allUsers:all},null,2));
 "
 }
 
