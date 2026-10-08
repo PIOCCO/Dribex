@@ -25,9 +25,9 @@ if [[ ! -f "$ENV_FILE" ]]; then
   exit 1
 fi
 
-if [[ ! -f "$APIO_ROOT/server/package.json" || ! -f "$APIO_ROOT/package.json" ]]; then
-  echo "Missing APIO source at $APIO_ROOT" >&2
-  echo "Sync maisonmaroc from Azelos — see souq-local/apio/README.md" >&2
+chmod +x "$ROOT/scripts/apio-verify-source.sh" 2>/dev/null || true
+if ! "$ROOT/scripts/apio-verify-source.sh"; then
+  echo "Run: $ROOT/scripts/apio-sync-source.sh" >&2
   exit 1
 fi
 

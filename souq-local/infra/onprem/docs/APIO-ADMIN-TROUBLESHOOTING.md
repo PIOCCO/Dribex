@@ -1,5 +1,23 @@
 # APIO admin (7217) — when nothing works
 
+## 0. Docker build: `"/server": not found` or `COPY server/` fails
+
+The **Docker build context** is `souq-local/apio/`. It must contain the **full maisonmaroc app**, not only `Dockerfile.admin`.
+
+On piocco:
+
+```bash
+cd ~/MarGem/souq-local/infra/onprem
+git pull   # get scripts/apio-sync-source.sh
+chmod +x scripts/apio-sync-source.sh scripts/apio-verify-source.sh
+./scripts/apio-sync-source.sh
+./scripts/apio-verify-source.sh
+docker compose -f docker-compose.prod.yml -f docker-compose.apio.prod.yml \
+  --env-file .env.prod build apio-admin
+```
+
+Optional: `AZELos_BRANCH=cursor/production-audit-3967 ./scripts/apio-sync-source.sh`
+
 ## What you should see when it works
 
 ```bash
@@ -255,7 +273,7 @@ Use **`SUPER_ADMIN_EMAIL`** / **`SUPER_ADMIN_PASSWORD`** from `.env.apio.prod` (
 
 Use `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` from `.env.apio.prod` on the **7217/7218** login page, not Google client OAuth.
 
-## I. Crash: `getaddrinfo EAI_AGAIN apio-admin`
+## J. Crash: `getaddrinfo EAI_AGAIN apio-admin`
 
 **Cause:** `APIO_ADMIN_BIND=apio-admin` (hostname) in `.env.apio.prod`, or `depends_on: apio-server` with `network_mode: host` (no Docker DNS on host network).
 
