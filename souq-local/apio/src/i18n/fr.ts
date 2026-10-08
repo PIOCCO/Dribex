@@ -474,6 +474,8 @@ export const fr: Dict = {
     memberInfoSection: "Informations du membre",
     passwordHint: "Minimum 8 caractères.",
     memberCreatedSuccess: "Membre créé avec succès.",
+    emailAlreadyInUse:
+      "Cet e-mail est déjà utilisé (membre, client ou autre compte). Recherchez-le dans la liste ou utilisez une autre adresse.",
     errorGenericTitle: "Impossible de charger les données",
     tryAgain: "Réessayer",
     uiBuild: "Version interface",

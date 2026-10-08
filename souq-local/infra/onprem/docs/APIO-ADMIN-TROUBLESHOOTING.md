@@ -354,6 +354,21 @@ Open **`http://100.80.43.124:7218/login`** (not `https://`). If the browser cach
 
 **Alternative:** Terminate TLS with **`tailscale serve --https=7218 http://127.0.0.1:7218`** and use **`https://`** in the browser (keep `APIO_ADMIN_BIND=127.0.0.1`).
 
+## H2. **409 Conflict** on `POST /api/admin/members`
+
+**Meaning:** **`Email already in use`** — that address exists in `users` (member, client, Google account, or a failed retry after a partial create).
+
+**On piocco:**
+
+```bash
+docker exec margem-prod-apio-server-1 sqlite3 /data/apio.sqlite \
+  "SELECT email, role, status FROM users WHERE email LIKE '%example%';"
+```
+
+Use a **new email**, or find the member in the admin list (search by email). Do not submit the form twice — a first success + second click also returns 409.
+
+After pulling latest admin server changes, super-admin create **no longer requires SMTP** and marks the account **email-verified** so the member can log in immediately.
+
 ## H. Login flicker → **401** on `/api/auth/me` and `/api/admin/members`
 
 Login POST succeeds but the session cookie is **not stored** on **`http://100.x:7218`**.

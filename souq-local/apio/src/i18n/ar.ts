@@ -467,6 +467,8 @@ export const ar = {
     memberInfoSection: "معلومات العضو",
     passwordHint: "8 أحرف على الأقل.",
     memberCreatedSuccess: "تم إنشاء العضو بنجاح.",
+    emailAlreadyInUse:
+      "هذا البريد مستخدم بالفعل (عضو أو عميل أو حساب آخر). ابحث في القائمة أو استخدم بريداً آخر.",
     errorGenericTitle: "تعذّر تحميل البيانات",
     tryAgain: "إعادة المحاولة",
     uiBuild: "إصدار الواجهة",

@@ -46,7 +46,7 @@ export default function CreateMemberDialog({ open, onClose, onCreated }: Props) 
     e.preventDefault();
     setError(null);
     setSubmitting(true);
-    const { error: err } = await apiFetch("/api/admin/members", {
+    const { error: err, status, code } = await apiFetch("/api/admin/members", {
       method: "POST",
       body: JSON.stringify({
         email: form.email,
@@ -62,7 +62,11 @@ export default function CreateMemberDialog({ open, onClose, onCreated }: Props) 
     });
     setSubmitting(false);
     if (err) {
-      setError(err);
+      if (status === 409 || code === "EMAIL_TAKEN" || /already in use/i.test(err)) {
+        setError(t("adminDash.emailAlreadyInUse"));
+      } else {
+        setError(err);
+      }
       return;
     }
     onCreated();
