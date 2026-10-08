@@ -1,0 +1,141 @@
+import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
+import { v4 as uuidv4 } from "uuid";
+
+export const ROLES = {
+  SUPER_ADMIN: "SUPER_ADMIN",
+  REAL_ESTATE_OWNER: "REAL_ESTATE_OWNER",
+  CLIENT: "CLIENT",
+};
+
+const JWT_SECRET = process.env.JWT_SECRET || "dev-insecure-secret";
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
+
+export function hashPassword(plain) {
+  return bcrypt.hashSync(plain, 12);
+}
+
+export function verifyPassword(plain, hash) {
+  if (!hash) return false;
+  return bcrypt.compare(plain, hash);
+}
+
+const JWT_ALG = "HS256";
+
+export function signToken(user) {
+  return jwt.sign(
+    {
+      sub: user.id,
+      role: user.role,
+      email: user.email,
+    },
+    JWT_SECRET,
+    { expiresIn: JWT_EXPIRES_IN, algorithm: JWT_ALG },
+  );
+}
+
+export function verifyToken(token) {
+  return jwt.verify(token, JWT_SECRET, { algorithms: [JWT_ALG] });
+}
+
+export function sanitizeUser(row) {
+  if (!row) return null;
+  const emailVerified =
+    row.auth_provider === "google" || Boolean(row.email_verified_at);
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.name,
+    phone: row.phone,
+    role: row.role,
+    status: row.status,
+    authProvider: row.auth_provider,
+    ownerProfileId: row.role === ROLES.CLIENT ? null : row.owner_profile_id,
+    emailVerified,
+    createdAt: row.created_at,
+  };
+}
+
+export function markEmailVerified(db, userId) {
+  const now = new Date().toISOString();
+  db.prepare(`UPDATE users SET email_verified_at = ?, updated_at = ? WHERE id = ?`).run(
+    now,
+    now,
+    userId,
+  );
+}
+
+export function setUserPassword(db, userId, plain) {
+  const now = new Date().toISOString();
+  db.prepare(`UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?`).run(
+    hashPassword(plain),
+    now,
+    userId,
+  );
+}
+
+export function findUserByEmail(db, email) {
+  return db
+    .prepare(`SELECT * FROM users WHERE email = ? COLLATE NOCASE`)
+    .get(email.trim());
+}
+
+export function findUserById(db, id) {
+  return db.prepare(`SELECT * FROM users WHERE id = ?`).get(id);
+}
+
+export function findUserByGoogleSubject(db, sub) {
+  return db.prepare(`SELECT * FROM users WHERE google_subject = ?`).get(sub);
+}
+
+export function createUser(db, input) {
+  if (input.role === ROLES.CLIENT && input.ownerProfileId) {
+    const err = new Error("Client accounts cannot be linked to a member profile");
+    err.status = 400;
+    throw err;
+  }
+  const id = uuidv4();
+  const now = new Date().toISOString();
+  db.prepare(
+    `INSERT INTO users (
+      id, email, password_hash, name, phone, role, status,
+      auth_provider, google_subject, owner_profile_id, email_verified_at, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    id,
+    input.email.trim().toLowerCase(),
+    input.passwordHash ?? null,
+    input.name,
+    input.phone ?? null,
+    input.role,
+    input.status ?? "ACTIVE",
+    input.authProvider ?? "local",
+    input.googleSubject ?? null,
+    input.role === ROLES.CLIENT ? null : (input.ownerProfileId ?? null),
+    input.emailVerifiedAt ?? null,
+    now,
+    now,
+  );
+  return findUserById(db, id);
+}
+
+export function assertActiveUser(user) {
+  if (!user) {
+    const err = new Error("Invalid credentials");
+    err.status = 401;
+    throw err;
+  }
+  if (user.status === "DISABLED") {
+    const err = new Error("Account disabled");
+    err.status = 403;
+    throw err;
+  }
+}
+
+export function rejectRoleInBody(body) {
+  if (body && typeof body.role === "string" && body.role.trim()) {
+    const err = new Error("Role cannot be set via this endpoint");
+    err.status = 400;
+    throw err;
+  }
+}
