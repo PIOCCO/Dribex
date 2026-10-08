@@ -8,6 +8,8 @@ ENV_FILE="${APIO_ENV_FILE:-$ROOT/.env.apio.prod}"
 DRIBEX_ENV="${ENV_FILE_DRIBEX:-$ROOT/.env.prod}"
 
 COMPOSE=(docker compose -f "$ROOT/docker-compose.prod.yml" -f "$ROOT/docker-compose.apio.prod.yml")
+# shellcheck source=scripts/apio-load-env.sh
+source "$ROOT/scripts/apio-load-env.sh"
 # shellcheck source=/dev/null
 set -a
 # TAILSCALE_IP for apio-admin host bind (see docker-compose.apio-admin-tailscale.yml)

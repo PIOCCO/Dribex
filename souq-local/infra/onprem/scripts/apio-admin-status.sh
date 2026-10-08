@@ -2,6 +2,8 @@
 # Why http://100.x:7217|7218 shows ERR_CONNECTION_REFUSED
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=scripts/apio-load-env.sh
+source "$ROOT/scripts/apio-load-env.sh" 2>/dev/null || true
 PORT="${APIO_ADMIN_PORT:-7218}"
 TS="$(tailscale ip -4 2>/dev/null || echo '')"
 
@@ -11,7 +13,7 @@ docker ps -a --filter name=apio-admin --format 'table {{.Names}}\t{{.Status}}\t{
 CID=$(docker ps -qf 'name=apio-admin' | head -1)
 if [[ -z "$CID" ]]; then
   echo "FAIL: apio-admin is not running. Start with:"
-  echo "  cd $ROOT && docker compose -f docker-compose.prod.yml -f docker-compose.apio.prod.yml --env-file .env.prod up -d apio-admin"
+  echo "  cd $ROOT && ./scripts/apio-admin-recreate.sh"
   exit 1
 fi
 

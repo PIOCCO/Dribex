@@ -16,6 +16,8 @@ if [[ ! -f "$APIO_ENV" ]]; then
 fi
 
 cd "$ROOT"
+# shellcheck source=scripts/apio-load-env.sh
+source "$ROOT/scripts/apio-load-env.sh"
 docker compose -f docker-compose.prod.yml -f docker-compose.apio.prod.yml \
   --env-file "$DRIBEX_ENV" up -d --force-recreate apio-admin
 

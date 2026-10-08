@@ -2,7 +2,7 @@
 
 ## 0a. Worked before UI/git pull, broken now (127.0.0.1:7217 in logs)
 
-**Cause:** You used to set **`APIO_ADMIN_BIND=100.x`** and **`APIO_ADMIN_PORT=7218`** in **compose `environment:`** or local edits. **`git pull` removed those**; the image default is **`127.0.0.1:7217`**, while **Tailscale Serve** may still listen on **`100.x:7217`** → 404 or refused. **`rm` of untracked files** did not cause this; **rebuild + compose/env reset** did.
+**Cause:** `.env.apio.prod` has **`APIO_ADMIN_BIND=100.x`** and **`APIO_ADMIN_PORT=7218`**, but the container shows **`127.0.0.1` / `7217`**. That happens when compose **`environment:`** sets **`APIO_ADMIN_*: ${APIO_ADMIN_*:-defaults}`** — interpolation uses **`--env-file .env.prod`** (no APIO keys), so defaults **override** `env_file: .env.apio.prod` on every recreate. **Tailscale Serve** on **`100.x:7217`** can still return **404** while the app listens on loopback only.
 
 **Restore (keeps new UI, fixes network):**
 
@@ -35,8 +35,8 @@ chmod +x scripts/apio-admin-status.sh
 After UI rebuild, always:
 
 ```bash
-docker compose -f docker-compose.prod.yml -f docker-compose.apio.prod.yml \
-  --env-file .env.prod up -d --force-recreate apio-admin
+./scripts/apio-admin-recreate.sh
+# or: ./scripts/apio-admin-restore-network.sh  (also resets tailscale serve + .env.apio.prod bind)
 ./scripts/apio-admin-status.sh
 ```
 

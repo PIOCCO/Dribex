@@ -48,9 +48,10 @@ services:
       - .env.apio.prod
     environment:
       NODE_ENV: production
-      APIO_ADMIN_PORT: 7217
-      APIO_ADMIN_BIND: 127.0.0.1
       APIO_ADMIN_STATIC_DIR: /app/admin/dist
+      # Bind/port come from env_file (.env.apio.prod) only — do NOT set APIO_ADMIN_PORT/BIND here:
+      # ${VAR:-default} in this block is interpolated from --env-file .env.prod (no APIO_* keys)
+      # and would override env_file with 127.0.0.1:7217 every recreate.
     volumes:
       - apio_data:/data
     # Publish on loopback only (Tailscale: `tailscale serve --bg --http=7217 http://127.0.0.1:7217`).
