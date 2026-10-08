@@ -56,11 +56,13 @@ export default function AdminMembersPage() {
     }
   }, [q, statusFilter]);
 
-  const load = fetchMembers;
+  const reload = () => {
+    void fetchMembers();
+  };
 
   useEffect(() => {
-    load();
-  }, [load]);
+    void fetchMembers();
+  }, [fetchMembers]);
 
   const hasFilters = Boolean(q || statusFilter);
   const locale = lang === "fr" ? "fr-FR" : "ar-MA";
@@ -76,7 +78,7 @@ export default function AdminMembersPage() {
       method: "PATCH",
       body: JSON.stringify({ status: next }),
     });
-    load();
+    reload();
   };
 
   return (
@@ -86,7 +88,7 @@ export default function AdminMembersPage() {
         description={t("adminDash.membersPageDescription")}
         actions={
           <>
-            <button type="button" className="btn-outline btn-sm" onClick={load} aria-label={t("adminDash.refresh")}>
+            <button type="button" className="btn-outline btn-sm" onClick={reload} aria-label={t("adminDash.refresh")}>
               <RefreshCw size={16} aria-hidden />
             </button>
             <button type="button" className="btn-primary" onClick={() => setCreateOpen(true)}>
@@ -103,7 +105,7 @@ export default function AdminMembersPage() {
         </p>
       ) : null}
 
-      {error ? <ErrorBanner message={error} onRetry={load} /> : null}
+      {error ? <ErrorBanner message={error} onRetry={reload} /> : null}
 
       <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-1 flex-col gap-3 sm:flex-row">
