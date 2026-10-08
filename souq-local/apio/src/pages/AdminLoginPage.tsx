@@ -45,8 +45,8 @@ export default function AdminLoginPage({ homePath = "/admin" }: AdminLoginPagePr
   };
 
   return (
-    <div className="container-page flex min-h-[60vh] items-center justify-center py-10">
-      <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-card ring-1 ring-ink-100">
+    <div className="flex min-h-screen items-center justify-center bg-surface px-4 py-10">
+      <div className="w-full max-w-md surface-panel shadow-card">
         <BrandLogo variant="onLight" linkToHome={false} />
         <h1 className="mt-6 text-2xl font-extrabold text-ink-900">{t("auth.adminLoginTitle")}</h1>
         {error && (

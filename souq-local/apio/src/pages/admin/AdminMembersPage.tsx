@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { LogOut, Plus, RefreshCw, Search } from "lucide-react";
+import { Link, useOutletContext } from "react-router-dom";
+import { Plus, RefreshCw, Search, X } from "lucide-react";
 import { useLocale } from "../../lib/useLocale";
-import { useAuth } from "../../context/AuthContext";
 import { apiFetch } from "../../lib/api";
-import AdminContentPanels from "../../components/admin/AdminContentPanels";
+import PageHeader from "../../components/admin/ui/PageHeader";
+import StatusBadge from "../../components/admin/ui/StatusBadge";
+import EmptyState from "../../components/admin/ui/EmptyState";
+import ErrorBanner from "../../components/admin/ui/ErrorBanner";
+import TableSkeleton from "../../components/admin/ui/TableSkeleton";
+import CreateMemberDialog from "../../components/admin/CreateMemberDialog";
 
 interface MemberRow {
   id: string;
@@ -16,71 +20,50 @@ interface MemberRow {
   created_at: string;
   company?: string | null;
   projectCount?: number;
-  lastActivity?: string;
 }
 
-type AdminMembersPageProps = { adminBase?: string };
+type OutletCtx = { adminBase?: string };
 
-export default function AdminMembersPage({ adminBase = "/admin" }: AdminMembersPageProps) {
+export default function AdminMembersPage() {
+  const { adminBase = "/" } = useOutletContext<OutletCtx>() || {};
   const adminRoot = adminBase.replace(/\/$/, "") || "";
-  const { t } = useLocale();
-  const { logout } = useAuth();
-  const navigate = useNavigate();
+  const { t, lang } = useLocale();
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [tab, setTab] = useState<"members" | "content">("members");
-  const [form, setForm] = useState({
-    email: "",
-    password: "",
-    name: "",
-    phone: "",
-    companyFr: "",
-    companyAr: "",
-    cityId: "oujda",
-    contactPosition: "",
-  });
+  const [createOpen, setCreateOpen] = useState(false);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    setLoading(true);
     const params = new URLSearchParams();
     if (q) params.set("q", q);
     if (statusFilter) params.set("status", statusFilter);
     const { data, error: err } = await apiFetch<{ members: MemberRow[] }>(
       `/api/admin/members${params.toString() ? `?${params}` : ""}`,
     );
-    if (err) setError(err);
-    else {
+    setLoading(false);
+    if (err) {
+      setError(err);
+      setMembers([]);
+    } else {
       setError(null);
       setMembers(data?.members ?? []);
     }
   }, [q, statusFilter]);
 
   useEffect(() => {
-    if (tab === "members") load();
-  }, [load, tab]);
+    load();
+  }, [load]);
 
-  const createMember = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const { error: err } = await apiFetch("/api/admin/members", {
-      method: "POST",
-      body: JSON.stringify({
-        email: form.email,
-        password: form.password,
-        name: form.name,
-        phone: form.phone || undefined,
-        companyFr: form.companyFr,
-        companyAr: form.companyAr,
-        cityId: form.cityId,
-        contactPosition: form.contactPosition || undefined,
-        status: "ACTIVE",
-      }),
-    });
-    if (err) setError(err);
-    else {
-      setForm((f) => ({ ...f, email: "", password: "", name: "", phone: "", companyFr: "", companyAr: "" }));
-      load();
-    }
+  const hasFilters = Boolean(q || statusFilter);
+  const locale = lang === "fr" ? "fr-FR" : "ar-MA";
+
+  const clearFilters = () => {
+    setQ("");
+    setStatusFilter("");
   };
 
   const toggleStatus = async (member: MemberRow) => {
@@ -93,125 +76,156 @@ export default function AdminMembersPage({ adminBase = "/admin" }: AdminMembersP
   };
 
   return (
-    <div className="container-page py-8">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-extrabold text-navy">{t("adminDash.title")}</h1>
-        <div className="flex gap-2">
-          <button type="button" className="btn-secondary" onClick={load} aria-label={t("adminDash.refresh")}>
-            <RefreshCw size={16} aria-hidden />
-          </button>
-          <button
-            type="button"
-            className="btn-secondary inline-flex items-center gap-2"
-            onClick={async () => {
-              await logout();
-              navigate(`${adminRoot}/login`.replace("//", "/"));
-            }}
-          >
-            <LogOut size={16} aria-hidden />
-            <span>{t("nav.logout")}</span>
-          </button>
-        </div>
-      </div>
-
-      <div className="mt-6 flex flex-wrap gap-2 border-b border-ink-100 pb-2">
-        <button type="button" className={`btn ${tab === "members" ? "btn-primary" : "btn-secondary"}`} onClick={() => setTab("members")}>
-          {t("adminDash.tabMembers")}
-        </button>
-        <Link to={`${adminRoot}/projects`} className="btn-secondary">
-          {t("adminDash.tabProjects")}
-        </Link>
-        <button type="button" className={`btn ${tab === "content" ? "btn-primary" : "btn-secondary"}`} onClick={() => setTab("content")}>
-          {t("adminDash.tabContent")}
-        </button>
-      </div>
-
-      {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
-
-      {tab === "content" ? (
-        <div className="mt-8">
-          <AdminContentPanels />
-        </div>
-      ) : (
-        <>
-          <section className="mt-8 rounded-2xl border border-ink-100 bg-white p-6 shadow-sm">
-            <h2 className="flex items-center gap-2 text-lg font-bold text-navy">
-              <Plus size={18} aria-hidden />
+    <>
+      <PageHeader
+        title={t("adminDash.membersPageTitle")}
+        description={t("adminDash.membersPageDescription")}
+        actions={
+          <>
+            <button type="button" className="btn-outline btn-sm" onClick={load} aria-label={t("adminDash.refresh")}>
+              <RefreshCw size={16} aria-hidden />
+            </button>
+            <button type="button" className="btn-primary" onClick={() => setCreateOpen(true)}>
+              <Plus size={16} aria-hidden />
               <span>{t("adminDash.createMember")}</span>
-            </h2>
-            <form onSubmit={createMember} className="mt-4 grid gap-3 sm:grid-cols-2">
-              <input className="input" required placeholder={t("adminDash.contactName")} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-              <input className="input" placeholder={t("adminDash.contactPosition")} value={form.contactPosition} onChange={(e) => setForm({ ...form, contactPosition: e.target.value })} />
-              <input className="input" required placeholder={t("adminDash.companyFr")} value={form.companyFr} onChange={(e) => setForm({ ...form, companyFr: e.target.value })} />
-              <input dir="rtl" className="input" placeholder={t("adminDash.companyAr")} value={form.companyAr} onChange={(e) => setForm({ ...form, companyAr: e.target.value })} />
-              <input dir="ltr" className="input" required type="email" placeholder={t("auth.email")} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-              <input dir="ltr" className="input" type="tel" placeholder={t("auth.phone")} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-              <input dir="ltr" className="input" required type="password" minLength={8} placeholder={t("auth.password")} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-              <button type="submit" className="btn-primary sm:col-span-2">
-                {t("adminDash.createMember")}
-              </button>
-            </form>
-          </section>
+            </button>
+          </>
+        }
+      />
 
-          <section className="mt-8">
-            <div className="mb-4 flex flex-col gap-3 sm:flex-row">
-              <div className="relative flex-1">
-                <Search className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-ink-400" size={16} aria-hidden />
-                <input className="input w-full ps-9" placeholder={t("adminDash.searchMembers")} value={q} onChange={(e) => setQ(e.target.value)} />
-              </div>
-              <select className="input sm:w-48" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                <option value="">{t("adminDash.allStatuses")}</option>
-                <option value="ACTIVE">{t("adminDash.statusActive")}</option>
-                <option value="DISABLED">{t("adminDash.statusSuspended")}</option>
-              </select>
-            </div>
-            <div className="overflow-x-auto rounded-2xl border border-ink-100 bg-white">
-              <table className="min-w-full text-sm">
-                <thead className="bg-stone-50 text-start text-ink-600">
-                  <tr>
-                    <th className="px-4 py-3">{t("adminDash.company")}</th>
-                    <th className="px-4 py-3">{t("adminDash.contact")}</th>
-                    <th className="px-4 py-3">{t("auth.email")}</th>
-                    <th className="px-4 py-3">{t("adminDash.status")}</th>
-                    <th className="px-4 py-3">{t("adminDash.projectCount")}</th>
-                    <th className="px-4 py-3">{t("adminDash.created")}</th>
-                    <th className="px-4 py-3">{t("adminDash.actions")}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-ink-100">
-                  {members.length === 0 && (
-                    <tr>
-                      <td colSpan={7} className="px-4 py-8 text-center text-sm text-ink-500">
-                        {t("adminDash.noMembers")}
-                      </td>
-                    </tr>
-                  )}
-                  {members.map((m) => (
-                    <tr key={m.id}>
-                      <td className="px-4 py-3 font-medium">{m.company || "—"}</td>
-                      <td className="px-4 py-3">{m.name}</td>
-                      <td className="px-4 py-3" dir="ltr">
-                        {m.email}
-                      </td>
-                      <td className="px-4 py-3">{m.status === "ACTIVE" ? t("adminDash.statusActive") : t("adminDash.statusSuspended")}</td>
-                      <td className="px-4 py-3">{m.projectCount ?? 0}</td>
-                      <td className="px-4 py-3">{new Date(m.created_at).toLocaleDateString()}</td>
-                      <td className="px-4 py-3 space-x-2 whitespace-nowrap">
-                        <Link to={`${adminRoot}/members/${m.id}`} className="font-semibold text-brand-700 hover:underline">
-                          {t("adminDash.view")}
-                        </Link>
-                        <button type="button" className="text-brand-700 hover:underline" onClick={() => toggleStatus(m)}>
-                          {m.status === "ACTIVE" ? t("adminDash.suspend") : t("adminDash.activate")}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        </>
+      {success ? (
+        <p className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-900" role="status">
+          {success}
+        </p>
+      ) : null}
+
+      {error ? <ErrorBanner message={error} onRetry={load} /> : null}
+
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-1 flex-col gap-3 sm:flex-row">
+          <div className="relative min-w-0 flex-1">
+            <Search className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-ink-400" size={16} aria-hidden />
+            <input
+              className="input w-full ps-9 pe-9"
+              placeholder={t("adminDash.searchMembers")}
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              aria-label={t("adminDash.searchMembers")}
+            />
+            {q ? (
+              <button
+                type="button"
+                className="absolute end-2 top-1/2 -translate-y-1/2 rounded p-1 text-ink-400 hover:bg-ink-50"
+                onClick={() => setQ("")}
+                aria-label={t("adminDash.clearSearch")}
+              >
+                <X size={14} aria-hidden />
+              </button>
+            ) : null}
+          </div>
+          <select
+            className="input sm:w-48"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            aria-label={t("adminDash.statusFilterLabel")}
+          >
+            <option value="">{t("adminDash.allStatuses")}</option>
+            <option value="ACTIVE">{t("adminDash.statusActive")}</option>
+            <option value="DISABLED">{t("adminDash.statusSuspended")}</option>
+          </select>
+        </div>
+        <p className="text-sm font-semibold text-ink-500">
+          {t("adminDash.memberCount", { count: members.length })}
+        </p>
+      </div>
+
+      {hasFilters ? (
+        <div className="mb-3">
+          <button type="button" className="text-sm font-semibold text-brand-700 hover:underline" onClick={clearFilters}>
+            {t("adminDash.clearFilters")}
+          </button>
+        </div>
+      ) : null}
+
+      {loading ? (
+        <TableSkeleton cols={7} />
+      ) : members.length === 0 ? (
+        <EmptyState
+          title={hasFilters ? t("adminDash.noMembersFilteredTitle") : t("adminDash.noMembersYetTitle")}
+          description={hasFilters ? t("adminDash.noMembersFiltered") : t("adminDash.noMembersYet")}
+          action={
+            hasFilters ? (
+              <button type="button" className="btn-outline" onClick={clearFilters}>
+                {t("adminDash.clearFilters")}
+              </button>
+            ) : (
+              <button type="button" className="btn-primary" onClick={() => setCreateOpen(true)}>
+                <Plus size={16} aria-hidden />
+                <span>{t("adminDash.createMember")}</span>
+              </button>
+            )
+          }
+        />
+      ) : (
+        <div className="admin-table-wrap">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th scope="col">{t("adminDash.company")}</th>
+                <th scope="col">{t("adminDash.contact")}</th>
+                <th scope="col">{t("auth.email")}</th>
+                <th scope="col">{t("adminDash.status")}</th>
+                <th scope="col">{t("adminDash.projectCount")}</th>
+                <th scope="col">{t("adminDash.created")}</th>
+                <th scope="col" className="text-end">
+                  {t("adminDash.actions")}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {members.map((m) => (
+                <tr key={m.id}>
+                  <td className="max-w-[180px] truncate font-medium" title={m.company || undefined}>
+                    {m.company || "—"}
+                  </td>
+                  <td className="max-w-[140px] truncate">{m.name}</td>
+                  <td className="max-w-[200px] truncate font-mono text-xs" dir="ltr" title={m.email}>
+                    {m.email}
+                  </td>
+                  <td>
+                    <StatusBadge status={m.status} />
+                  </td>
+                  <td>{m.projectCount ?? 0}</td>
+                  <td className="whitespace-nowrap text-ink-600">
+                    {new Date(m.created_at).toLocaleDateString(locale)}
+                  </td>
+                  <td className="text-end whitespace-nowrap">
+                    <Link to={`${adminRoot}/members/${m.id}`.replace("//", "/")} className="font-semibold text-brand-700 hover:underline">
+                      {t("adminDash.view")}
+                    </Link>
+                    <span className="mx-2 text-ink-200" aria-hidden>
+                      |
+                    </span>
+                    <button type="button" className="font-semibold text-brand-700 hover:underline" onClick={() => toggleStatus(m)}>
+                      {m.status === "ACTIVE" ? t("adminDash.suspend") : t("adminDash.activate")}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
-    </div>
+
+      <CreateMemberDialog
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={() => {
+          setSuccess(t("adminDash.memberCreatedSuccess"));
+          load();
+          window.setTimeout(() => setSuccess(null), 4000);
+        }}
+      />
+    </>
   );
 }

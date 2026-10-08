@@ -50,14 +50,20 @@ export default function AdminContentPanels() {
   ];
 
   return (
-    <section className="mt-10">
-      <div className="flex flex-wrap gap-2 border-b border-ink-200 pb-2">
+    <section>
+      <div
+        className="mb-6 flex flex-wrap gap-1 rounded-xl border border-ink-100 bg-white p-1"
+        role="tablist"
+        aria-label={t("adminDash.tabContent")}
+      >
         {tabs.map((tb) => (
           <button
             key={tb.id}
             type="button"
-            className={`rounded-lg px-4 py-2 text-sm font-bold ${
-              tab === tb.id ? "bg-brand-700 text-white" : "bg-ink-50 text-ink-700 hover:bg-ink-100"
+            role="tab"
+            aria-selected={tab === tb.id}
+            className={`rounded-lg px-4 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 ${
+              tab === tb.id ? "bg-brand-50 text-brand-800 ring-1 ring-inset ring-brand-100" : "text-ink-600 hover:bg-ink-50"
             }`}
             onClick={() => {
               setTab(tb.id);
@@ -68,7 +74,7 @@ export default function AdminContentPanels() {
           </button>
         ))}
       </div>
-      {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+      {error && <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
       {tab === "news" && <AdminNewsPanel onError={setError} />}
       {tab === "events" && <AdminEventsPanel onError={setError} />}
       {tab === "documents" && <AdminDocumentsPanel onError={setError} />}

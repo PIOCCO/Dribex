@@ -1,0 +1,420 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+.skip-link {
+  @apply sr-only focus:not-sr-only focus:fixed focus:start-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-bold focus:text-navy-800 focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-brand-400;
+}
+
+body {
+  @apply bg-white text-ink-800 antialiased;
+  font-family: "Tajawal", "Cairo", system-ui, sans-serif;
+}
+
+html[dir="ltr"] body {
+  font-family: "Inter", "Tajawal", system-ui, sans-serif;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  @apply font-display font-bold text-ink-900;
+  letter-spacing: -0.02em;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@layer components {
+  .container-page {
+    @apply mx-auto w-full max-w-[1140px] px-4 sm:px-6;
+  }
+  .page-shell {
+    @apply min-h-[50vh] bg-surface py-6 sm:py-8;
+  }
+  .page-header {
+    @apply mb-6 flex flex-col gap-4 border-b border-ink-100 pb-5 sm:flex-row sm:items-end sm:justify-between;
+  }
+  .page-title {
+    @apply text-2xl font-extrabold tracking-tight text-ink-900 sm:text-[1.75rem];
+  }
+  .page-description {
+    @apply mt-1 text-sm text-ink-500;
+  }
+  .empty-state {
+    @apply flex flex-col items-center justify-center rounded-2xl border border-dashed border-ink-200 bg-white px-6 py-16 text-center;
+  }
+  .nav-link {
+    @apply rounded-lg px-3 py-2 text-sm font-semibold text-ink-600 transition hover:bg-ink-50 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300;
+  }
+  .nav-link-active {
+    @apply bg-brand-50 text-brand-700;
+  }
+  .btn {
+    @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 disabled:opacity-60;
+  }
+  .btn-sm {
+    @apply min-h-[36px] rounded-lg px-3 py-2 text-xs;
+  }
+  .btn-primary {
+    @apply btn bg-brand-600 text-white hover:bg-brand-700;
+  }
+  .btn-outline {
+    @apply btn border border-ink-200 bg-white text-ink-700 hover:border-brand-400 hover:text-brand-700;
+  }
+  .btn-secondary {
+    @apply btn-outline;
+  }
+  .btn-danger {
+    @apply btn border border-red-200 bg-white text-red-700 hover:bg-red-50 focus-visible:ring-red-300;
+  }
+  .admin-shell {
+    @apply flex min-h-screen bg-surface text-ink-800;
+  }
+  .admin-sidebar {
+    @apply flex w-full flex-col border-ink-200 bg-white lg:fixed lg:inset-y-0 lg:z-40 lg:w-60 lg:border-e;
+  }
+  .admin-main {
+    @apply flex min-h-screen flex-1 flex-col lg:ps-60;
+  }
+  .admin-topbar {
+    @apply sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-ink-100 bg-white/95 px-4 py-3 backdrop-blur sm:px-6;
+  }
+  .admin-nav-item {
+    @apply flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-ink-600 transition hover:bg-ink-50 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300;
+  }
+  .admin-nav-item-active {
+    @apply bg-brand-50 text-brand-800 ring-1 ring-inset ring-brand-100;
+  }
+  .admin-table-wrap {
+    @apply overflow-x-auto rounded-xl border border-ink-100 bg-white shadow-sm;
+  }
+  .admin-table {
+    @apply min-w-full text-sm;
+  }
+  .admin-table thead {
+    @apply border-b border-ink-100 bg-ink-50/80 text-start text-xs font-bold uppercase tracking-wide text-ink-500;
+  }
+  .admin-table th {
+    @apply px-4 py-3;
+  }
+  .admin-table td {
+    @apply px-4 py-3 align-middle;
+  }
+  .admin-table tbody tr {
+    @apply border-b border-ink-50 transition hover:bg-ink-50/50;
+  }
+  .admin-badge {
+    @apply inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold;
+  }
+  .admin-badge-active {
+    @apply admin-badge border-emerald-200 bg-emerald-50 text-emerald-800;
+  }
+  .admin-badge-suspended {
+    @apply admin-badge border-amber-200 bg-amber-50 text-amber-900;
+  }
+  .admin-skeleton {
+    @apply animate-pulse rounded-md bg-ink-100;
+  }
+  .btn-ghost {
+    @apply btn text-ink-600 hover:bg-ink-100;
+  }
+  .btn-ghost-light {
+    @apply btn text-white/90 hover:bg-white/10;
+  }
+  .btn-whatsapp {
+    @apply btn bg-[#25D366] text-white hover:brightness-95;
+  }
+  .card {
+    @apply rounded-2xl bg-white shadow-card ring-1 ring-ink-100/80;
+  }
+  .card-interactive {
+    @apply card transition hover:-translate-y-0.5 hover:shadow-card-hover hover:ring-brand-100;
+  }
+  .surface-panel {
+    @apply rounded-2xl border border-ink-100 bg-white p-4 shadow-sm sm:p-5;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-md bg-ink-100 px-2.5 py-1 text-xs font-semibold text-ink-700;
+  }
+  .field-label {
+    @apply mb-1 block text-xs font-bold uppercase tracking-wide text-ink-500;
+  }
+  .input {
+    @apply w-full rounded-lg border border-ink-200 bg-white px-3 py-2.5 text-sm font-medium text-ink-900 placeholder:text-ink-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100;
+  }
+  .input-hero {
+    @apply rounded-lg border-0 bg-ink-50 px-3 py-2.5 text-sm font-medium text-ink-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-200;
+  }
+  .badge-verified {
+    @apply inline-flex items-center gap-1 rounded-md bg-brand-50 px-2 py-0.5 text-[11px] font-bold text-brand-700;
+  }
+  .section-title {
+    @apply text-xl font-extrabold text-ink-900 sm:text-2xl;
+  }
+  .section-sub {
+    @apply mt-1 text-sm text-ink-500;
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.35s ease both;
+}
+/* ——— Homepage (reference editorial layout) ——— */
+.home-page {
+  @apply text-ink-800;
+}
+.home-container {
+  @apply mx-auto w-full max-w-[1180px] px-5 sm:px-8;
+}
+.home-section {
+  @apply py-16 sm:py-20 lg:py-24;
+}
+.home-hero {
+  @apply relative isolate min-h-[min(72vh,640px)] w-full overflow-hidden bg-navy sm:min-h-[min(78vh,680px)];
+}
+.home-hero-media {
+  @apply absolute inset-0 z-0;
+}
+.home-hero-media--empty {
+  @apply bg-ink-200;
+}
+.home-hero-media__slide {
+  @apply absolute inset-0 opacity-0;
+  z-index: 0;
+  transition: opacity var(--hero-fade-ms, 1400ms) ease-in-out;
+  will-change: opacity;
+}
+.home-hero-media__slide--fade-reduced {
+  transition: none;
+}
+.home-hero-media__slide--active {
+  @apply opacity-100;
+  z-index: 1;
+}
+.home-hero-media__img {
+  @apply block h-full w-full object-cover;
+  object-position: var(--hero-object-pos-mobile, center);
+  transform: none;
+}
+@media (min-width: 768px) {
+  .home-hero-media__img {
+    object-position: var(--hero-object-pos, center);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-hero-media__slide {
+    transition: none;
+  }
+}
+.home-hero-media__progress {
+  @apply pointer-events-none absolute bottom-6 end-6 z-[2] flex gap-1.5 sm:bottom-8 sm:end-8;
+}
+.home-hero-media__dot {
+  @apply h-1 w-1 rounded-full bg-white/35 transition-all duration-500;
+}
+.home-hero-media__dot--active {
+  @apply w-5 bg-white/80;
+}
+.home-hero-media__controls {
+  @apply pointer-events-none absolute inset-y-0 start-0 end-0 z-[2] flex items-center justify-between px-2 opacity-0 transition-opacity duration-300 sm:px-4;
+}
+.home-hero-media--cinema:hover .home-hero-media__controls,
+.home-hero-media--cinema:focus-within .home-hero-media__controls {
+  @apply opacity-100;
+}
+.home-hero-media__nav {
+  @apply pointer-events-auto grid h-10 w-10 place-items-center rounded-full border border-white/25 bg-black/20 text-white/90 backdrop-blur-sm transition hover:bg-black/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60;
+}
+.home-hero-overlay {
+  @apply pointer-events-none absolute inset-0 z-[1];
+  background: linear-gradient(
+    to right,
+    rgba(26, 35, 50, 0.88) 0%,
+    rgba(26, 35, 50, 0.62) 45%,
+    rgba(26, 35, 50, 0.35) 100%
+  );
+}
+html[dir="rtl"] .home-hero-overlay {
+  background: linear-gradient(
+    to left,
+    rgba(26, 35, 50, 0.88) 0%,
+    rgba(26, 35, 50, 0.62) 45%,
+    rgba(26, 35, 50, 0.35) 100%
+  );
+}
+.home-hero-content {
+  @apply relative z-[2] flex min-h-[min(72vh,640px)] flex-col justify-center py-14 sm:min-h-[min(78vh,680px)] sm:py-16 lg:py-20;
+}
+.home-hero-kicker {
+  @apply text-xs font-bold uppercase tracking-[0.2em];
+  color: rgba(255, 255, 255, 0.65);
+}
+.home-hero .home-hero-title {
+  color: #ffffff;
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.35);
+}
+.home-hero-lead {
+  color: rgba(255, 255, 255, 0.88);
+}
+.home-btn-hero-outline {
+  @apply border text-white backdrop-blur-[2px] hover:border-white;
+  border-color: rgba(255, 255, 255, 0.75);
+  background-color: rgba(255, 255, 255, 0.05);
+}
+.home-btn-hero-outline:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+.home-display-title {
+  font-family: "Playfair Display", Georgia, serif;
+  @apply text-3xl font-semibold leading-[1.15] text-navy sm:text-4xl lg:text-[2.65rem];
+}
+.home-cta-headline {
+  color: #ffffff;
+  text-shadow: 0 1px 18px rgba(0, 0, 0, 0.35);
+}
+html[dir="rtl"] .home-display-title {
+  font-family: Cairo, Tajawal, serif;
+}
+.home-section-title {
+  font-family: "Playfair Display", Georgia, serif;
+  @apply text-2xl font-semibold text-navy sm:text-[1.75rem];
+}
+html[dir="rtl"] .home-section-title {
+  font-family: Cairo, Tajawal, serif;
+}
+.home-kicker {
+  @apply text-xs font-bold uppercase tracking-[0.2em] text-ink-400;
+}
+.home-nav-link {
+  @apply px-3 py-2 text-[13px] font-semibold text-ink-700 transition hover:text-navy;
+}
+.home-nav-link-active {
+  @apply text-navy;
+}
+.home-btn {
+  @apply inline-flex min-h-[44px] items-center justify-center px-6 py-2.5 text-xs font-bold uppercase tracking-wide transition;
+}
+.home-btn-primary {
+  @apply bg-navy text-white hover:bg-navy-800;
+}
+.home-btn-outline {
+  @apply border border-ink-300 bg-white text-ink-800 hover:border-navy hover:text-navy;
+}
+.home-text-link {
+  @apply text-sm font-semibold text-navy underline-offset-4 hover:underline;
+}
+.home-text-link-light {
+  @apply font-semibold text-white underline-offset-4 hover:underline;
+}
+.home-mission-card {
+  @apply rounded-md border border-ink-200/60 bg-white px-5 py-7 shadow-sm;
+}
+.home-mission-section {
+  @apply bg-[#f5f2ed];
+}
+.home-region-photo {
+  @apply overflow-hidden rounded-2xl bg-ink-100;
+}
+
+.inst-news-card-title {
+  font-family: "Playfair Display", Georgia, serif;
+  @apply font-semibold leading-snug;
+}
+.inst-news-body {
+  @apply border-t border-ink-200/80 pt-8;
+}
+
+.oriental-map-shell {
+  @apply bg-transparent px-0 py-2;
+}
+.oriental-map-svg {
+  @apply mx-auto h-auto w-full max-w-[420px];
+}
+.oriental-map-label {
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.oriental-map-label--light {
+  paint-order: stroke fill;
+  stroke: rgba(26, 35, 50, 0.35);
+  stroke-width: 2px;
+}
+.oriental-map-label--active {
+  font-weight: 700;
+}
+.oriental-map-marker--link {
+  @apply cursor-pointer outline-none;
+}
+.oriental-map-marker--link:focus-visible text {
+  text-decoration: underline;
+}
+.oriental-map-marker {
+  @apply cursor-default;
+}
+.home-member-card {
+  @apply border border-ink-200 bg-white px-5 py-8 text-center;
+}
+.home-project-card {
+  @apply relative block aspect-[3/4] overflow-hidden bg-ink-200;
+}
+.home-project-overlay {
+  @apply absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-5 pt-16;
+}
+.home-news-row {
+  @apply flex gap-4 border border-ink-100 bg-white p-3 transition hover:border-ink-300;
+}
+.home-event-card {
+  @apply flex gap-4 border border-ink-200 bg-white p-4;
+}
+.home-event-date {
+  @apply flex h-16 w-16 shrink-0 flex-col items-center justify-center border border-ink-200 bg-ink-50;
+}
+.home-doc-card {
+  @apply border border-ink-200 bg-white p-6;
+}
+.home-faq {
+  @apply border border-ink-200 bg-white px-4 py-3;
+}
+.home-faq summary {
+  @apply cursor-pointer list-none text-sm font-semibold text-ink-900 marker:content-none [&::-webkit-details-marker]:hidden;
+}
+.home-faq p {
+  @apply mt-3 text-sm leading-relaxed text-ink-600;
+}
+.home-chip {
+  @apply border border-ink-200 bg-white px-3 py-1.5 text-xs font-semibold text-ink-700 hover:border-navy hover:text-navy;
+}
+.home-footer {
+  @apply bg-navy text-white;
+}
+.home-mosaic img {
+  @apply grayscale-[15%];
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
