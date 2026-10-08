@@ -219,7 +219,39 @@ Open **`http://100.80.43.124:7218/login`** (not `https://`). If the browser cach
 
 **Alternative:** Terminate TLS with **`tailscale serve --https=7218 http://127.0.0.1:7218`** and use **`https://`** in the browser (keep `APIO_ADMIN_BIND=127.0.0.1`).
 
-## H. Super-admin login
+## H. Login flicker → **401** on `/api/auth/me` and `/api/admin/members`
+
+Login POST succeeds but the session cookie is **not stored** on **`http://100.x:7218`**.
+
+**Cause:** Admin auth uses **`ADMIN_COOKIE_*`**, not `COOKIE_SECURE`. In production, `adminAuth.js` defaults to **`Secure` cookies** unless you override:
+
+```env
+ADMIN_COOKIE_SECURE=false
+ADMIN_COOKIE_SAME_SITE=lax
+```
+
+(`COOKIE_SECURE=true` is correct for **public** `https://dribex.ma/APIO` on `apio-server`; keep both.)
+
+Recreate admin after editing `.env.apio.prod`:
+
+```bash
+docker compose -f docker-compose.prod.yml -f docker-compose.apio.prod.yml \
+  --env-file .env.prod up -d --force-recreate apio-admin
+```
+
+**Verify:** DevTools → Application → Cookies → `apio_admin_token` should appear after login (no **Secure** flag on HTTP). Or:
+
+```bash
+curl -s -c /tmp/adm.jar -X POST "http://100.80.43.124:7218/api/auth/admin/login" \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"YOUR_SUPER_ADMIN_EMAIL","password":"YOUR_PASSWORD"}'
+grep apio_admin /tmp/adm.jar
+curl -s -b /tmp/adm.jar "http://100.80.43.124:7218/api/auth/me"
+```
+
+Use **`SUPER_ADMIN_EMAIL`** / **`SUPER_ADMIN_PASSWORD`** from `.env.apio.prod` (must match the user seeded in SQLite on first migrate).
+
+## I. Super-admin login
 
 Use `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` from `.env.apio.prod` on the **7217/7218** login page, not Google client OAuth.
 
