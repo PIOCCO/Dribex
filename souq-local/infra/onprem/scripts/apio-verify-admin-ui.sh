@@ -17,17 +17,17 @@ need_file "$APIO_ROOT/src/components/admin/layout/AdminLayout.tsx"
 need_file "$APIO_ROOT/src/i18n/fr.ts"
 need_file "$APIO_ROOT/src/i18n/index.ts"
 
-if ! rg -q '@shared/i18n' "$APIO_ROOT/admin/src/main.tsx" 2>/dev/null; then
+if ! grep -Fq '@shared/i18n' "$APIO_ROOT/admin/src/main.tsx" 2>/dev/null; then
   echo "FAIL: admin/src/main.tsx must import @shared/i18n (raw adminDash.* keys otherwise)" >&2
   fail=1
 fi
 
-if ! rg -q 'AdminLayout' "$APIO_ROOT/admin/src/App.tsx" 2>/dev/null; then
+if ! grep -Fq 'AdminLayout' "$APIO_ROOT/admin/src/App.tsx" 2>/dev/null; then
   echo "FAIL: admin/src/App.tsx must use AdminLayout (old tabbed dashboard otherwise)" >&2
   fail=1
 fi
 
-if ! rg -q 'Administration APIO' "$APIO_ROOT/src/i18n/fr.ts" 2>/dev/null; then
+if ! grep -Fq 'Administration APIO' "$APIO_ROOT/src/i18n/fr.ts" 2>/dev/null; then
   echo "FAIL: src/i18n/fr.ts missing adminDash strings — overlay from Dribex git failed" >&2
   fail=1
 fi

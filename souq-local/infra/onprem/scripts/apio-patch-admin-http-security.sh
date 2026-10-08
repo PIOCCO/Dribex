@@ -11,7 +11,7 @@ if [[ ! -f "$SEC" ]]; then
   exit 1
 fi
 
-if rg -q 'APIO_ADMIN_ALLOW_HTTP' "$SEC" 2>/dev/null; then
+if grep -Fq 'APIO_ADMIN_ALLOW_HTTP' "$SEC" 2>/dev/null; then
   echo "Already patched: $SEC"
   exit 0
 fi

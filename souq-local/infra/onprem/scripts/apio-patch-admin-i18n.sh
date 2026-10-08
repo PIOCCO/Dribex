@@ -9,7 +9,7 @@ if [[ ! -f "$MAIN" ]]; then
   exit 1
 fi
 
-if rg -q '@shared/i18n' "$MAIN" 2>/dev/null; then
+if grep -Fq '@shared/i18n' "$MAIN" 2>/dev/null; then
   echo "Already patched: $MAIN"
   exit 0
 fi

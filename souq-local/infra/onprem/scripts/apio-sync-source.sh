@@ -83,8 +83,9 @@ copy_overlay_tree() {
 }
 
 overlay_has_dribex_admin() {
-  [[ -f "$APIO_ROOT/admin/src/main.tsx" ]] && rg -q '@shared/i18n' "$APIO_ROOT/admin/src/main.tsx" 2>/dev/null \
-    && rg -q 'AdminLayout' "$APIO_ROOT/admin/src/App.tsx" 2>/dev/null
+  [[ -f "$APIO_ROOT/admin/src/main.tsx" && -f "$APIO_ROOT/admin/src/App.tsx" ]] \
+    && grep -Fq '@shared/i18n' "$APIO_ROOT/admin/src/main.tsx" \
+    && grep -Fq 'AdminLayout' "$APIO_ROOT/admin/src/App.tsx"
 }
 
 restore_overlay_from_local_git() {
@@ -147,7 +148,7 @@ fi
 preserve=(
   Dockerfile.admin Dockerfile.server Dockerfile.web nginx-default.conf .dockerignore
 )
-if [[ -n "$GIT_APIO_DIR" && ! same_dir "$GIT_APIO_DIR" "$APIO_ROOT" ]]; then
+if [[ -n "$GIT_APIO_DIR" ]] && ! same_dir "$GIT_APIO_DIR" "$APIO_ROOT"; then
   for f in "${preserve[@]}"; do
     if [[ -f "$GIT_APIO_DIR/$f" ]]; then
       cp "$GIT_APIO_DIR/$f" "$APIO_ROOT/$f"
