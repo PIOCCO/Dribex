@@ -1,5 +1,20 @@
 # APIO admin (7217) — when nothing works
 
+## 0a. Worked before UI/git pull, broken now (127.0.0.1:7217 in logs)
+
+**Cause:** You used to set **`APIO_ADMIN_BIND=100.x`** and **`APIO_ADMIN_PORT=7218`** in **compose `environment:`** or local edits. **`git pull` removed those**; the image default is **`127.0.0.1:7217`**, while **Tailscale Serve** may still listen on **`100.x:7217`** → 404 or refused. **`rm` of untracked files** did not cause this; **rebuild + compose/env reset** did.
+
+**Restore (keeps new UI, fixes network):**
+
+```bash
+cd ~/MarGem/souq-local/infra/onprem
+chmod +x scripts/apio-admin-restore-network.sh
+APIO_ADMIN_PORT=7218 ./scripts/apio-admin-restore-network.sh
+./scripts/apio-admin-status.sh
+```
+
+Then open **`http://100.x:7218/login`**. For the redesigned UI only (if needed): **`./scripts/apio-admin-rebuild.sh`**.
+
 ## 0b. Browser: **ERR_CONNECTION_REFUSED** on `100.x.x.x:7217|7218`
 
 Nothing is listening on that **IP:port** (different from 404/403).
