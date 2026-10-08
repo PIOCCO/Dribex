@@ -18,6 +18,13 @@ set -a
 source "$ENV_FILE"
 set +a
 
+matches=$(grep -cE '^POSTGRES_PASSWORD=' "$ENV_FILE" 2>/dev/null || echo 0)
+if [[ "$matches" -ne 1 ]]; then
+  echo "FAIL: $ENV_FILE must contain exactly one POSTGRES_PASSWORD= line (found $matches)" >&2
+  grep -n '^POSTGRES_PASSWORD=' "$ENV_FILE" >&2 || true
+  exit 1
+fi
+
 if [[ -z "${POSTGRES_PASSWORD:-}" ]]; then
   echo "POSTGRES_PASSWORD is empty in $ENV_FILE" >&2
   exit 1
