@@ -3,3 +3,5 @@
 #   pip install -r requirements-telemetry.txt
 azure-monitor-opentelemetry==1.6.13
 sentry-sdk[fastapi]==2.22.0
+# Starlette integration imports Jinja2Templates when Sentry patches Starlette.
+jinja2>=3.1.0
