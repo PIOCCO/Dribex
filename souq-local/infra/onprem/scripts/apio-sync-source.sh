@@ -6,11 +6,15 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APIO_ROOT="${APIO_ROOT:-$ROOT/../../apio}"
 APIO_ROOT="$(cd "$APIO_ROOT" && pwd)"
-GIT_ROOT="$(git -C "$ROOT" rev-parse --show-toplevel 2>/dev/null || true)"
+GIT_ROOT=""
+APIO_PREFIX=""
 AZELos_REPO="${AZELos_REPO:-https://github.com/PIOCCO/Azelos.git}"
 AZELos_BRANCH="${AZELos_BRANCH:-cursor/production-audit-3967}"
+DRIBEX_REPO="${DRIBEX_REPO:-https://github.com/PIOCCO/Dribex.git}"
+DRIBEX_OVERLAY_BRANCH="${DRIBEX_OVERLAY_BRANCH:-cursor/apio-admin-i18n-8c79}"
 TMP="${TMPDIR:-/tmp}/Azelos-apio-sync-$$"
-OVERLAY_TMP="${TMPDIR:-/tmp}/dribex-apio-overlay-$$"
+DRIBEX_TMP="${TMPDIR:-/tmp}/dribex-apio-overlay-$$"
+OVERLAY_TMP="${TMPDIR:-/tmp}/dribex-apio-archive-$$"
 
 need() {
   command -v "$1" >/dev/null 2>&1 || { echo "Missing command: $1" >&2; exit 1; }
@@ -18,62 +22,6 @@ need() {
 need git
 need tar
 
-# Git path prefix to APIO inside this repo (Dribex monorepo vs souq-local-only checkout).
-git_apio_prefix() {
-  [[ -n "${GIT_ROOT:-}" ]] || return 1
-  if git -C "$GIT_ROOT" ls-files --error-unmatch souq-local/apio/admin/src/main.tsx >/dev/null 2>&1; then
-    echo "souq-local/apio"
-    return 0
-  fi
-  if git -C "$GIT_ROOT" ls-files --error-unmatch apio/admin/src/main.tsx >/dev/null 2>&1; then
-    echo "apio"
-    return 0
-  fi
-  return 1
-}
-
-same_dir() {
-  [[ "$(cd "$1" && pwd -P)" == "$(cd "$2" && pwd -P)" ]]
-}
-
-echo "==> Clone Azelos (${AZELos_BRANCH})"
-rm -rf "$TMP"
-git clone --depth 1 --branch "$AZELos_BRANCH" "$AZELos_REPO" "$TMP"
-
-SRC="$TMP/maisonmaroc"
-if [[ ! -f "$SRC/package.json" || ! -f "$SRC/server/package.json" ]]; then
-  echo "Branch $AZELos_BRANCH has no maisonmaroc/ with server/ — try another AZELos_BRANCH" >&2
-  exit 1
-fi
-
-mkdir -p "$APIO_ROOT"
-echo "==> Sync maisonmaroc -> $APIO_ROOT"
-tar -C "$SRC" -cf - \
-  --exclude node_modules \
-  --exclude dist \
-  --exclude admin/dist \
-  --exclude server/node_modules \
-  --exclude server/data \
-  . | tar -xf - -C "$APIO_ROOT"
-
-APIO_PREFIX="$(git_apio_prefix || true)"
-GIT_APIO_DIR=""
-if [[ -n "$APIO_PREFIX" && -n "$GIT_ROOT" ]]; then
-  GIT_APIO_DIR="$(cd "$GIT_ROOT/$APIO_PREFIX" && pwd -P)"
-fi
-
-preserve=(
-  Dockerfile.admin Dockerfile.server Dockerfile.web nginx-default.conf .dockerignore
-)
-if [[ -n "$GIT_APIO_DIR" && ! same_dir "$GIT_APIO_DIR" "$APIO_ROOT" ]]; then
-  for f in "${preserve[@]}"; do
-    if [[ -f "$GIT_APIO_DIR/$f" ]]; then
-      cp "$GIT_APIO_DIR/$f" "$APIO_ROOT/$f"
-    fi
-  done
-fi
-
-echo "==> Overlay Dribex admin/i18n/UX from git (after Azelos wiped apio/)"
 OVERLAY_PATHS=(
   admin/src
   admin/vite.config.ts
@@ -88,14 +36,27 @@ OVERLAY_PATHS=(
   src/pages/admin
 )
 
-restore_overlay_from_git() {
-  [[ -n "$APIO_PREFIX" && -n "$GIT_ROOT" ]] || return 1
-  local rel
-  local paths=()
-  for rel in "${OVERLAY_PATHS[@]}"; do
-    paths+=("$APIO_PREFIX/$rel")
+# Find a git root (walk up from infra/onprem) that tracks Dribex admin main.tsx.
+resolve_git_apio() {
+  local d="$ROOT"
+  while [[ "$d" != "/" ]]; do
+    if git -C "$d" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+      local prefix
+      for prefix in souq-local/apio apio; do
+        if git -C "$d" ls-files --error-unmatch "$prefix/admin/src/main.tsx" >/dev/null 2>&1; then
+          GIT_ROOT="$d"
+          APIO_PREFIX="$prefix"
+          return 0
+        fi
+      done
+    fi
+    d="$(cd "$d/.." && pwd)"
   done
-  git -C "$GIT_ROOT" checkout HEAD -- "${paths[@]}"
+  return 1
+}
+
+same_dir() {
+  [[ "$(cd "$1" && pwd -P)" == "$(cd "$2" && pwd -P)" ]]
 }
 
 copy_overlay_tree() {
@@ -121,36 +82,92 @@ copy_overlay_tree() {
   done
 }
 
-if [[ -z "$APIO_PREFIX" ]]; then
-  echo "WARN: Git checkout has no tracked apio/admin — pull cursor/apio-admin-i18n-8c79" >&2
-elif ! restore_overlay_from_git; then
-  echo "WARN: git checkout overlay failed" >&2
-fi
+overlay_has_dribex_admin() {
+  [[ -f "$APIO_ROOT/admin/src/main.tsx" ]] && rg -q '@shared/i18n' "$APIO_ROOT/admin/src/main.tsx" 2>/dev/null \
+    && rg -q 'AdminLayout' "$APIO_ROOT/admin/src/App.tsx" 2>/dev/null
+}
 
-if [[ -n "$GIT_APIO_DIR" && -d "$GIT_APIO_DIR/admin/src" ]]; then
-  if same_dir "$GIT_APIO_DIR" "$APIO_ROOT"; then
-    echo "    git tree at $GIT_APIO_DIR (same as APIO_ROOT)"
+restore_overlay_from_local_git() {
+  [[ -n "$APIO_PREFIX" && -n "$GIT_ROOT" ]] || return 1
+  local rel paths=()
+  for rel in "${OVERLAY_PATHS[@]}"; do
+    paths+=("$APIO_PREFIX/$rel")
+  done
+  echo "==> Overlay from local git ($GIT_ROOT, prefix=$APIO_PREFIX)"
+  git -C "$GIT_ROOT" checkout HEAD -- "${paths[@]}"
+  local git_apio_dir
+  git_apio_dir="$(cd "$GIT_ROOT/$APIO_PREFIX" && pwd -P)"
+  if same_dir "$git_apio_dir" "$APIO_ROOT"; then
+    echo "    working tree is APIO_ROOT"
   else
-    copy_overlay_tree "$GIT_APIO_DIR" "$APIO_ROOT"
+    copy_overlay_tree "$git_apio_dir" "$APIO_ROOT"
   fi
-else
-  # Last resort: extract tracked paths from git into APIO_ROOT (works when apio/ is not in working tree).
-  rm -rf "$OVERLAY_TMP"
-  mkdir -p "$OVERLAY_TMP"
-  if [[ -n "$APIO_PREFIX" && -n "$GIT_ROOT" ]]; then
-    archive_paths=()
-    for rel in "${OVERLAY_PATHS[@]}"; do
-      archive_paths+=("$APIO_PREFIX/$rel")
-    done
-    (cd "$GIT_ROOT" && git archive HEAD "${archive_paths[@]}" 2>/dev/null) | tar -xf - -C "$OVERLAY_TMP" || true
-    if [[ -d "$OVERLAY_TMP/$APIO_PREFIX" ]]; then
-      copy_overlay_tree "$OVERLAY_TMP/$APIO_PREFIX" "$APIO_ROOT"
-    fi
+}
+
+restore_overlay_from_dribex_github() {
+  echo "==> Overlay from GitHub ($DRIBEX_REPO branch $DRIBEX_OVERLAY_BRANCH)"
+  rm -rf "$DRIBEX_TMP"
+  git clone --depth 1 --branch "$DRIBEX_OVERLAY_BRANCH" "$DRIBEX_REPO" "$DRIBEX_TMP"
+  local src="$DRIBEX_TMP/souq-local/apio"
+  if [[ ! -f "$src/admin/src/main.tsx" ]]; then
+    echo "Branch $DRIBEX_OVERLAY_BRANCH has no souq-local/apio/admin in Dribex repo" >&2
+    rm -rf "$DRIBEX_TMP"
+    return 1
   fi
-  rm -rf "$OVERLAY_TMP"
+  copy_overlay_tree "$src" "$APIO_ROOT"
+  rm -rf "$DRIBEX_TMP"
+}
+
+echo "==> Clone Azelos (${AZELos_BRANCH})"
+rm -rf "$TMP"
+git clone --depth 1 --branch "$AZELos_BRANCH" "$AZELos_REPO" "$TMP"
+
+SRC="$TMP/maisonmaroc"
+if [[ ! -f "$SRC/package.json" || ! -f "$SRC/server/package.json" ]]; then
+  echo "Branch $AZELos_BRANCH has no maisonmaroc/ with server/ — try another AZELos_BRANCH" >&2
+  exit 1
 fi
 
-rm -rf "$TMP"
+mkdir -p "$APIO_ROOT"
+echo "==> Sync maisonmaroc -> $APIO_ROOT"
+tar -C "$SRC" -cf - \
+  --exclude node_modules \
+  --exclude dist \
+  --exclude admin/dist \
+  --exclude server/node_modules \
+  --exclude server/data \
+  . | tar -xf - -C "$APIO_ROOT"
+
+resolve_git_apio || true
+GIT_APIO_DIR=""
+if [[ -n "$APIO_PREFIX" && -n "$GIT_ROOT" ]]; then
+  GIT_APIO_DIR="$(cd "$GIT_ROOT/$APIO_PREFIX" && pwd -P)"
+fi
+
+preserve=(
+  Dockerfile.admin Dockerfile.server Dockerfile.web nginx-default.conf .dockerignore
+)
+if [[ -n "$GIT_APIO_DIR" && ! same_dir "$GIT_APIO_DIR" "$APIO_ROOT" ]]; then
+  for f in "${preserve[@]}"; do
+    if [[ -f "$GIT_APIO_DIR/$f" ]]; then
+      cp "$GIT_APIO_DIR/$f" "$APIO_ROOT/$f"
+    fi
+  done
+fi
+
+if [[ -n "$APIO_PREFIX" ]]; then
+  restore_overlay_from_local_git || echo "WARN: local git checkout overlay failed" >&2
+fi
+
+if ! overlay_has_dribex_admin; then
+  echo "WARN: Dribex admin UX still missing after local git overlay" >&2
+  restore_overlay_from_dribex_github || {
+    echo "Run: $ROOT/scripts/apio-diagnose-git.sh" >&2
+    exit 1
+  }
+fi
+
+rm -rf "$TMP" "$OVERLAY_TMP"
 
 chmod +x "$ROOT/scripts/apio-patch-admin-http-security.sh" "$ROOT/scripts/apio-patch-admin-i18n.sh" 2>/dev/null || true
 "$ROOT/scripts/apio-patch-admin-i18n.sh" || true

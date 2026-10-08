@@ -300,11 +300,24 @@ git pull origin cursor/apio-admin-i18n-8c79
 
 **Expect after rebuild:** left **sidebar** (Membres / Projets / Contenu), French labels, footer **Version interface: &lt;git-sha&gt;**. Hard-refresh or private window.
 
+Git path on piocco (repo root is usually **`~/MarGem/souq-local`**, not `~/MarGem`):
+
+```bash
+cd ~/MarGem/souq-local
+git branch --show-current
+git ls-files apio/admin/src/main.tsx
+# full Dribex clone at ~/MarGem instead:
+# git ls-files souq-local/apio/admin/src/main.tsx
+./infra/onprem/scripts/apio-diagnose-git.sh
+```
+
+If `git ls-files` is empty, pull branch **`cursor/apio-admin-i18n-8c79`** or let sync clone overlay from GitHub automatically.
+
 Manual check on disk before build:
 
 ```bash
-grep '@shared/i18n' ../../apio/admin/src/main.tsx
-grep AdminLayout ../../apio/admin/src/App.tsx
+grep '@shared/i18n' ~/MarGem/souq-local/apio/admin/src/main.tsx
+grep AdminLayout ~/MarGem/souq-local/apio/admin/src/App.tsx
 ```
 
 ## G. White screen / `ERR_SSL_PROTOCOL_ERROR` / HTTPS in iframe on **http://100.x:7218**
