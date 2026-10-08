@@ -53,3 +53,22 @@ curl -s https://dribex.ma/APIO/api/health
 ```
 
 Member accounts created in **super-admin** (Tailscale) log in at **`https://dribex.ma/APIO/owner/login`** with the email/password set at creation.
+
+## Next.js **404** on `/APIO/api/auth/owner/login` (wrong route or missing nginx)
+
+**Symptom:** HTML title **“404: This page could not be found.”** from **Dribex Next.js**, not the APIO login form.
+
+**Cause (either):**
+
+1. **Wrong URL in the browser** — `/APIO/api/auth/owner/login` is a **POST JSON API**, not a page. Use **`https://dribex.ma/APIO/owner/login`**.
+2. **Nginx `/APIO` routes not installed** — traffic falls through to `margem_web` (Next.js). Often after `./scripts/recover-public-site.sh` or before the first **`./scripts/apio-prod-deploy.sh`**.
+
+**On piocco:**
+
+```bash
+cd ~/MarGem/souq-local/infra/onprem
+./scripts/apio-prod-status.sh    # explains what is missing
+./scripts/apio-prod-deploy.sh    # copies 20-apio-prod.conf + starts apio-server/apio-web + reloads nginx
+```
+
+After deploy, **`curl -sI https://dribex.ma/APIO/api/health`** should **not** be a Next.js 404, and **`https://dribex.ma/APIO/owner/login`** should show the APIO (Vite) login page.

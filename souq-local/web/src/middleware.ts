@@ -46,6 +46,16 @@ function applySecurityHeaders(response: NextResponse, request: NextRequest) {
 }
 
 export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // APIO is served by apio-web via nginx (/APIO/). If this middleware runs for /APIO/*,
+  // nginx routes are missing — still send users to the owner login path (fallback page).
+  if (request.method === "GET" && pathname === "/APIO/api/auth/owner/login") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/APIO/owner/login";
+    return applySecurityHeaders(NextResponse.redirect(url), request);
+  }
+
   const response = intlMiddleware(request);
   return applySecurityHeaders(response, request);
 }
