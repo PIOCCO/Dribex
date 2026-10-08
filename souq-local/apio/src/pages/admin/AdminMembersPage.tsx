@@ -36,11 +36,13 @@ export default function AdminMembersPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const fetchMembers = useCallback(async (opts?: { q?: string; status?: string }) => {
     setLoading(true);
     const params = new URLSearchParams();
-    if (q) params.set("q", q);
-    if (statusFilter) params.set("status", statusFilter);
+    const qq = opts?.q !== undefined ? opts.q : q;
+    const st = opts?.status !== undefined ? opts.status : statusFilter;
+    if (qq) params.set("q", qq);
+    if (st) params.set("status", st);
     const { data, error: err } = await apiFetch<{ members: MemberRow[] }>(
       `/api/admin/members${params.toString() ? `?${params}` : ""}`,
     );
@@ -53,6 +55,8 @@ export default function AdminMembersPage() {
       setMembers(data?.members ?? []);
     }
   }, [q, statusFilter]);
+
+  const load = fetchMembers;
 
   useEffect(() => {
     load();
@@ -221,7 +225,9 @@ export default function AdminMembersPage() {
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         onCreated={(meta) => {
-          load();
+          setQ("");
+          setStatusFilter("");
+          void fetchMembers({ q: "", status: "" });
           setSuccess(
             meta?.alreadyExists ? t("adminDash.memberAlreadyCreated") : t("adminDash.memberCreatedSuccess"),
           );

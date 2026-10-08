@@ -34,23 +34,38 @@ export function listMembersForAdmin(db, { q = "", status = "", sort = "created_d
   }
 
   const enriched = rows.map((r) => {
-    const profile = getMemberProfileById(db, r.owner_profile_id);
-    const dbCount = db
-      .prepare(
-        `SELECT COUNT(*) AS c FROM owner_project_drafts WHERE owner_profile_id = ? AND status = 'published'`,
-      )
-      .get(r.owner_profile_id)?.c;
-    const lastAct = db
-      .prepare(
-        `SELECT created_at FROM owner_activity_log WHERE owner_profile_id = ? ORDER BY created_at DESC LIMIT 1`,
-      )
-      .get(r.owner_profile_id)?.created_at;
-    return {
-      ...r,
-      company: profile?.agency?.fr || profile?.name?.fr || null,
-      projectCount: dbCount || 0,
-      lastActivity: lastAct || r.updated_at,
-    };
+    try {
+      const profile = getMemberProfileById(db, r.owner_profile_id);
+      let dbCount = 0;
+      let lastAct;
+      if (r.owner_profile_id) {
+        dbCount =
+          db
+            .prepare(
+              `SELECT COUNT(*) AS c FROM owner_project_drafts WHERE owner_profile_id = ? AND status = 'published'`,
+            )
+            .get(r.owner_profile_id)?.c || 0;
+        lastAct = db
+          .prepare(
+            `SELECT created_at FROM owner_activity_log WHERE owner_profile_id = ? ORDER BY created_at DESC LIMIT 1`,
+          )
+          .get(r.owner_profile_id)?.created_at;
+      }
+      return {
+        ...r,
+        company: profile?.agency?.fr || profile?.name?.fr || r.name || null,
+        projectCount: dbCount,
+        lastActivity: lastAct || r.updated_at,
+      };
+    } catch (e) {
+      console.warn("[apio-admin] member list enrich failed for", r.id, e?.message || e);
+      return {
+        ...r,
+        company: r.name || null,
+        projectCount: 0,
+        lastActivity: r.updated_at,
+      };
+    }
   });
 
   enriched.sort((a, b) => {
