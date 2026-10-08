@@ -22,6 +22,16 @@ Optional: `AZELos_BRANCH=cursor/production-audit-3967 ./scripts/apio-sync-source
 
 Refreshing the browser **does not** update the admin SPA — it is **baked into the Docker image** at `npm run build:admin`. You must **rebuild and recreate** `apio-admin`.
 
+If `git pull` aborts with **untracked working tree files would be overwritten** (e.g. `admin/vite.config.ts`):
+
+```bash
+cd ~/MarGem/souq-local
+rm -f souq-local/apio/admin/vite.config.ts souq-local/apio/src/vite-env.d.ts
+git pull origin cursor/apio-admin-i18n-8c79
+```
+
+Then:
+
 ```bash
 cd ~/MarGem/souq-local
 git pull origin cursor/apio-admin-i18n-8c79

@@ -48,8 +48,10 @@ done
 echo "==> Overlay Dribex admin/i18n/UX files from git checkout (if tracked)"
 if git -C "$REPO_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   git -C "$REPO_ROOT" checkout HEAD -- \
+    souq-local/apio/admin/vite.config.ts \
     souq-local/apio/admin/src/main.tsx \
     souq-local/apio/admin/src/App.tsx \
+    souq-local/apio/src/vite-env.d.ts \
     souq-local/apio/src/i18n/index.ts \
     souq-local/apio/src/i18n/fr.ts \
     souq-local/apio/src/i18n/ar.ts \
