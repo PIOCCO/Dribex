@@ -48,6 +48,7 @@ echo
 cat <<'EOF'
 ==> Common log patterns → fix
 
+  "password authentication failed for user" → POSTGRES_PASSWORD in .env.prod ≠ password in postgres volume; run: ./scripts/dribex-postgres-sync-password.sh
   "Database not ready"     → start postgres: docker compose … up -d postgres; check POSTGRES_* in .env.prod
   "Settings validation"    → fix .env.prod (JWT_SECRET_KEY, BREVO_API_KEY, ADMIN_IP_ALLOWLIST, …)
   "Alembic migration failed" → docker compose … run --rm api alembic upgrade head (after backup)
