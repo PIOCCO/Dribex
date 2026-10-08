@@ -35,14 +35,23 @@ done
 
 if [[ -n "$TS" ]]; then
   echo
-  echo "==> Tailscale IP probe ($TS)"
+  echo "==> Tailscale IP probe ($TS) — use APIO_ADMIN_PORT from env above"
   for p in 7217 7218; do
-    curl -sfI --connect-timeout 2 "http://${TS}:${p}/api/health" | head -1 || echo " FAIL http://${TS}:${p}"
+    line=$(curl -sI --connect-timeout 2 "http://${TS}:${p}/api/health" 2>/dev/null | head -1)
+    if [[ -z "$line" ]]; then
+      echo "  http://${TS}:${p} → connection refused (nothing listening)"
+    elif [[ "$line" == *"404"* ]]; then
+      echo "  http://${TS}:${p} → HTTP 404 (Tailscale Serve — NOT apio-admin; run: tailscale serve reset && tailscale serve --bg --http=${p} http://127.0.0.1:${p})"
+    elif [[ "$line" == *"200"* ]] || [[ "$line" == *"403"* ]]; then
+      echo "  http://${TS}:${p} → $line (reaching apio-admin)"
+    else
+      echo "  http://${TS}:${p} → $line"
+    fi
   done
 fi
 
 echo
 echo "Hints:"
-echo "  • ERR_CONNECTION_REFUSED on 100.x + APIO_ADMIN_BIND=127.0.0.1 → use tailscale serve OR set bind to $TS in .env.apio.prod"
-echo "  • Wrong port in browser → check APIO_ADMIN_PORT above (use that port in URL)"
-echo "  • Container Exited → read logs above; often missing APIO_ADMIN_JWT_SECRET or port in use"
+echo "  • App listens on 127.0.0.1:\$APIO_ADMIN_PORT — browser on 100.x needs Serve OR APIO_ADMIN_BIND=$TS"
+echo "  • HTTP 404 on 100.x:7217 = broken Tailscale Serve on that port (see above)"
+echo "  • ERR_CONNECTION_REFUSED = wrong port (7218 vs 7217) or container down"
