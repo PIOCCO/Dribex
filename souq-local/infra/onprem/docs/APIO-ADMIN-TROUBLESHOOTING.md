@@ -62,6 +62,27 @@ Optional: `AZELos_BRANCH=cursor/production-audit-3967 ./scripts/apio-sync-source
 
 Refreshing the browser **does not** update the admin SPA — it is **baked into the Docker image** at `npm run build:admin`. You must **rebuild and recreate** `apio-admin`.
 
+### « Impossible de charger les données » + `Cannot GET /api/admin/users`
+
+The **Utilisateurs** page needs **new backend routes** on the **admin listener** (7217/7218), not only a new UI.
+
+| Symptom | Cause |
+|---------|--------|
+| HTML error `Cannot GET /api/admin/users` | `apio-admin` container runs **old** `adminIndex` code (no `registerAdminUserRoutes`) — common after `apio-sync-source.sh` copied UI but **not** `server/src/adminUserRoutes.js` |
+
+**Fix on piocco:**
+
+```bash
+cd ~/MarGem/souq-local
+git pull origin cursor/apio-admin-i18n-8c79
+cd infra/onprem
+./scripts/apio-sync-source.sh
+./scripts/apio-admin-rebuild.sh
+./scripts/apio-admin-status.sh   # must show: OK: /api/admin/users exists (401 without login)
+```
+
+Then hard-refresh the browser and open **Utilisateurs** (`/users`).
+
 If `git pull` aborts with **untracked working tree files would be overwritten** (e.g. `admin/vite.config.ts`):
 
 ```bash

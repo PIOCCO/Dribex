@@ -26,6 +26,16 @@ OVERLAY_PATHS=(
   admin/src
   admin/vite.config.ts
   server/src/security.js
+  server/src/adminApiRoutes.js
+  server/src/adminUserRoutes.js
+  server/src/adminUsers.js
+  server/src/adminAudit.js
+  server/src/adminMembers.js
+  server/src/adminMemberRoutes.js
+  server/src/middleware.js
+  server/src/adminAuth.js
+  server/src/auth.js
+  server/src/db.js
   src/vite-env.d.ts
   src/index.css
   tailwind.config.js
@@ -34,6 +44,20 @@ OVERLAY_PATHS=(
   src/lib/useLocale.ts
   src/components/admin
   src/pages/admin
+)
+
+# Dribex admin user-management API (must match Utilisateurs UI)
+SERVER_ADMIN_OVERLAY=(
+  server/src/adminApiRoutes.js
+  server/src/adminUserRoutes.js
+  server/src/adminUsers.js
+  server/src/adminAudit.js
+  server/src/adminMembers.js
+  server/src/adminMemberRoutes.js
+  server/src/middleware.js
+  server/src/adminAuth.js
+  server/src/auth.js
+  server/src/db.js
 )
 
 # Find a git root (walk up from infra/onprem) that tracks Dribex admin main.tsx.
@@ -71,6 +95,14 @@ copy_overlay_tree() {
     if [[ -f "$from/$rel" ]]; then
       mkdir -p "$to/$(dirname "$rel")"
       cp "$from/$rel" "$to/$rel"
+    fi
+  done
+  for rel in "${SERVER_ADMIN_OVERLAY[@]}"; do
+    if [[ -f "$from/$rel" ]]; then
+      mkdir -p "$to/$(dirname "$rel")"
+      cp "$from/$rel" "$to/$rel"
+    else
+      echo "WARN: overlay missing $rel (Utilisateurs API will 404 without it)" >&2
     fi
   done
   for dir in src/components/admin src/pages/admin src/i18n; do

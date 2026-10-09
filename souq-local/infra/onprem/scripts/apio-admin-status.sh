@@ -86,6 +86,19 @@ if [[ -n "$TS" ]]; then
 fi
 
 echo
+echo "==> Admin user-management API (Utilisateurs)"
+ADMIN_PORT="${got_port:-${APIO_ADMIN_PORT:-7218}}"
+users_body="$(curl -s --connect-timeout 2 "http://127.0.0.1:${ADMIN_PORT}/api/admin/users" 2>/dev/null || true)"
+if [[ "$users_body" == *"Cannot GET /api/admin/users"* ]]; then
+  echo "  FAIL: route missing — UI is new but server image is old (Azelos base without Dribex overlay)."
+  echo "       Fix: git pull && ./scripts/apio-sync-source.sh && ./scripts/apio-admin-rebuild.sh"
+elif [[ "$users_body" == *'"error":"Authentication required"'* ]] || [[ "$users_body" == *"Authentication required"* ]]; then
+  echo "  OK: /api/admin/users exists (401 without login — expected)"
+else
+  echo "  Response snippet: ${users_body:0:120}"
+fi
+
+echo
 echo "Hints:"
 echo "  • App listens on 127.0.0.1:\$APIO_ADMIN_PORT — browser on 100.x needs Serve OR APIO_ADMIN_BIND=$TS"
 echo "  • HTTP 404 on 100.x:7217 = broken Tailscale Serve on that port (see above)"
