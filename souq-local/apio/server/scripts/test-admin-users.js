@@ -90,4 +90,20 @@ try {
 }
 assert("cannot delete own admin account", selfDeleteBlocked);
 
+const promoteTarget = createUser(db, {
+  email: "promote-client@test.local",
+  passwordHash: hashPassword("password12345"),
+  name: "Future Owner",
+  role: ROLES.CLIENT,
+  status: "ACTIVE",
+  authProvider: "local",
+  emailVerifiedAt: new Date().toISOString(),
+});
+changeUserRoleByAdmin(db, admin, promoteTarget.id, ROLES.REAL_ESTATE_OWNER, "promote test");
+const promoted = findUserById(db, promoteTarget.id);
+assert(
+  "client promoted to owner with auto profile",
+  promoted.role === ROLES.REAL_ESTATE_OWNER && Boolean(promoted.owner_profile_id),
+);
+
 console.log("admin users regression passed");

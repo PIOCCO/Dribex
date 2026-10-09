@@ -3,7 +3,7 @@ import { findUserById, hashPassword, ROLES, sanitizeUser } from "./auth.js";
 import { EMAIL_RE } from "./validateContent.js";
 import { logAdminAction } from "./adminAudit.js";
 import { normalizeAdminEmail, rejectEmailTaken } from "./adminMembers.js";
-import { getMemberProfileById } from "./memberProfiles.js";
+import { createMemberProfile, getMemberProfileById } from "./memberProfiles.js";
 import { validateUuid } from "./validateIds.js";
 
 const VALID_ROLES = new Set(Object.values(ROLES));
@@ -253,7 +253,43 @@ export function updateUserByAdmin(db, adminUser, userId, body) {
   return getUserDetailForAdmin(db, row.id);
 }
 
-export function changeUserRoleByAdmin(db, adminUser, userId, newRole, reason) {
+function ensureOwnerProfileForUser(db, row, { linkProfileId } = {}) {
+  if (row.owner_profile_id) return row.owner_profile_id;
+  const linked = linkProfileId ? String(linkProfileId).trim() : "";
+  if (linked) {
+    if (!getMemberProfileById(db, linked)) {
+      const err = new Error("Member profile not found");
+      err.status = 404;
+      err.code = "OWNER_PROFILE_NOT_FOUND";
+      throw err;
+    }
+    const taken = db
+      .prepare(`SELECT id FROM users WHERE owner_profile_id = ? AND id != ? LIMIT 1`)
+      .get(linked, row.id);
+    if (taken) {
+      const err = new Error("This member profile is already linked to another account");
+      err.status = 409;
+      err.code = "OWNER_PROFILE_TAKEN";
+      throw err;
+    }
+    return linked;
+  }
+  const profile = createMemberProfile(db, {
+    nameFr: row.name,
+    nameAr: row.name,
+    agencyFr: row.name,
+    agencyAr: row.name,
+    phone: row.phone,
+    email: row.email,
+    contactName: row.name,
+    contactPhone: row.phone,
+    contactEmail: row.email,
+    verified: true,
+  });
+  return profile.id;
+}
+
+export function changeUserRoleByAdmin(db, adminUser, userId, newRole, reason, options = {}) {
   const idCheck = validateUuid(userId);
   if (!idCheck.ok) {
     const err = new Error("Not found");
@@ -285,11 +321,12 @@ export function changeUserRoleByAdmin(db, adminUser, userId, newRole, reason) {
   if (newRole === ROLES.CLIENT) {
     ownerProfileId = null;
   }
+  let createdProfileId = null;
   if (newRole === ROLES.REAL_ESTATE_OWNER && !ownerProfileId) {
-    const err = new Error("Assign an owner profile before promoting to REAL_ESTATE_OWNER");
-    err.status = 400;
-    err.code = "OWNER_PROFILE_REQUIRED";
-    throw err;
+    ownerProfileId = ensureOwnerProfileForUser(db, row, {
+      linkProfileId: options.ownerProfileId,
+    });
+    if (!row.owner_profile_id) createdProfileId = ownerProfileId;
   }
   if (newRole === ROLES.SUPER_ADMIN && oldRole !== ROLES.SUPER_ADMIN) {
     const err = new Error("Promoting users to super administrator is not allowed from this endpoint");
@@ -297,9 +334,21 @@ export function changeUserRoleByAdmin(db, adminUser, userId, newRole, reason) {
     throw err;
   }
 
-  db.prepare(
-    `UPDATE users SET role = ?, owner_profile_id = ?, updated_at = ? WHERE id = ?`,
-  ).run(newRole, ownerProfileId, new Date().toISOString(), row.id);
+  const now = new Date().toISOString();
+  const verifyEmail =
+    newRole === ROLES.REAL_ESTATE_OWNER && !row.email_verified_at ? now : null;
+  if (verifyEmail) {
+    db.prepare(
+      `UPDATE users SET role = ?, owner_profile_id = ?, email_verified_at = COALESCE(email_verified_at, ?), updated_at = ? WHERE id = ?`,
+    ).run(newRole, ownerProfileId, verifyEmail, now, row.id);
+  } else {
+    db.prepare(`UPDATE users SET role = ?, owner_profile_id = ?, updated_at = ? WHERE id = ?`).run(
+      newRole,
+      ownerProfileId,
+      now,
+      row.id,
+    );
+  }
 
   logAdminAction(db, {
     adminUserId: adminUser.id,
@@ -309,6 +358,8 @@ export function changeUserRoleByAdmin(db, adminUser, userId, newRole, reason) {
     detail: JSON.stringify({
       from: oldRole,
       to: newRole,
+      ownerProfileId,
+      createdProfileId,
       reason: reason ? String(reason).slice(0, 500) : undefined,
     }),
   });

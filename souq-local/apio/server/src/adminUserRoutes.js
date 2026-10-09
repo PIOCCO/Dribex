@@ -67,9 +67,11 @@ export function registerAdminUserRoutes(app, db, { requireAuth, requireSuperAdmi
     try {
       const idCheck = validateUuid(req.params.id);
       if (!idCheck.ok) return res.status(404).json({ error: "Not found" });
-      const { role, reason } = req.body || {};
+      const { role, reason, ownerProfileId } = req.body || {};
       if (!role) return res.status(400).json({ error: "role is required" });
-      const detail = changeUserRoleByAdmin(db, adminActor(db, req), idCheck.value, String(role), reason);
+      const detail = changeUserRoleByAdmin(db, adminActor(db, req), idCheck.value, String(role), reason, {
+        ownerProfileId,
+      });
       res.json(detail);
     } catch (err) {
       handleAuthError(err, res);

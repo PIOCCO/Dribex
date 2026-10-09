@@ -477,8 +477,12 @@ export const ar = {
     changeRole: "تغيير الدور",
     roleReasonPlaceholder: "السبب (تدقيق)",
     applyRole: "تطبيق الدور",
+    promoteOwnerHint:
+      "ترقية عميل إلى عضو / مطور عقاري ينشئ ملفًا عامًا تلقائيًا (يمكن تعديله من الأعضاء).",
     confirmRoleChange: "تأكيد تغيير الدور؟",
     roleUpdated: "تم تحديث الدور.",
+    errOwnerProfileRequired:
+      "يتطلب ملف عضو. أعد المحاولة بعد التحديث، أو أنشئ العضو من الأعضاء → عضو جديد.",
     accountStatus: "حالة الحساب",
     suspendReasonRequired: "أدخل سبب الإيقاف.",
     suspendReasonPlaceholder: "سبب الإيقاف",

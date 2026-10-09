@@ -105,13 +105,17 @@ export default function AdminUserDetailPage() {
     if (!detail || newRole === detail.user.role) return;
     if (!window.confirm(t("adminDash.confirmRoleChange"))) return;
     setSaving(true);
-    const { error: err } = await apiFetch(`/api/admin/users/${detail.user.id}/role`, {
+    setError(null);
+    const { error: err, code } = await apiFetch(`/api/admin/users/${detail.user.id}/role`, {
       method: "POST",
       body: JSON.stringify({ role: newRole, reason: roleReason.trim() || undefined }),
     });
     setSaving(false);
-    if (err) setError(err);
-    else {
+    if (err) {
+      setError(
+        code === "OWNER_PROFILE_REQUIRED" ? t("adminDash.errOwnerProfileRequired") : err,
+      );
+    } else {
       setMessage(t("adminDash.roleUpdated"));
       void load();
     }
@@ -202,6 +206,9 @@ export default function AdminUserDetailPage() {
 
       <section className="surface-panel mb-6">
         <h2 className="text-base font-bold text-navy">{t("adminDash.changeRole")}</h2>
+        {u.role === "CLIENT" ? (
+          <p className="mt-2 text-sm text-ink-600">{t("adminDash.promoteOwnerHint")}</p>
+        ) : null}
         <div className="mt-3 flex flex-wrap gap-3">
           <select className="input sm:w-56" value={newRole} onChange={(e) => setNewRole(e.target.value)}>
             {ROLES.map((r) => (

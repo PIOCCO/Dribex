@@ -484,8 +484,12 @@ export const fr: Dict = {
     changeRole: "Changer le rôle",
     roleReasonPlaceholder: "Motif (audit)",
     applyRole: "Appliquer le rôle",
+    promoteOwnerHint:
+      "Promouvoir un client en membre / promoteur crée automatiquement un profil public (modifiable dans Membres).",
     confirmRoleChange: "Confirmer le changement de rôle ?",
     roleUpdated: "Rôle mis à jour.",
+    errOwnerProfileRequired:
+      "Impossible sans profil membre. Réessayez après déploiement du correctif, ou créez le membre via Membres → Nouveau membre.",
     accountStatus: "Statut du compte",
     suspendReasonRequired: "Indiquez un motif de suspension.",
     suspendReasonPlaceholder: "Motif de suspension (audit)",
