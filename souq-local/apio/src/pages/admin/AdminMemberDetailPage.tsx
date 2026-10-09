@@ -56,7 +56,7 @@ export default function AdminMemberDetailPage({ adminBase: adminBaseProp }: Admi
   return (
     <>
       <Link
-        to={adminRoot || "/"}
+        to={`${adminRoot}/members`.replace("//", "/") || "/members"}
         className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-brand-700 hover:underline"
       >
         <ArrowLeft size={16} aria-hidden />

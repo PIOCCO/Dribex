@@ -13,7 +13,9 @@ export default function AdminSidebar({ adminBase, onNavigate }: Props) {
     `admin-nav-item w-full ${isActive ? "admin-nav-item-active" : ""}`;
 
   const items = [
-    { to: base || "/", end: true, icon: Users, label: t("adminDash.tabMembers") },
+    { to: base || "/", end: true, icon: LayoutDashboard, label: t("adminDash.tabDashboard") },
+    { to: `${base}/users`.replace("//", "/"), icon: Users, label: t("adminDash.tabUsers") },
+    { to: `${base}/members`.replace("//", "/"), icon: Users, label: t("adminDash.tabMembers") },
     { to: `${base}/projects`.replace("//", "/"), icon: FolderKanban, label: t("adminDash.tabProjects") },
     { to: `${base}/content`.replace("//", "/"), icon: FileText, label: t("adminDash.tabContent") },
   ];

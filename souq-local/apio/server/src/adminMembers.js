@@ -17,7 +17,7 @@ export function normalizeAdminEmail(email) {
     .toLowerCase();
 }
 
-function rejectEmailTaken(db, normalizedEmail, { excludeUserId } = {}) {
+export function rejectEmailTaken(db, normalizedEmail, { excludeUserId } = {}) {
   const existing = findUserByEmail(db, normalizedEmail);
   if (!existing || existing.id === excludeUserId) return;
   const err = new Error("Email already in use");
