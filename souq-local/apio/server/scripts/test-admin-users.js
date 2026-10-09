@@ -66,4 +66,28 @@ assert("suspend client", disabled.status === "DISABLED");
 
 assert("super admin count", countActiveSuperAdmins(db) === 1);
 
+let lastSuperBlocked = false;
+try {
+  changeUserRoleByAdmin(db, admin, admin.id, ROLES.CLIENT, "test");
+} catch (e) {
+  lastSuperBlocked = e.status === 400 || e.status === 403;
+}
+assert("cannot demote own super admin role", lastSuperBlocked);
+
+let deleteConfirmBlocked = false;
+try {
+  deleteUserByAdmin(db, admin, client.id, { confirmEmail: "wrong@test.local", mode: "hard" });
+} catch (e) {
+  deleteConfirmBlocked = e.status === 400 && e.code === "CONFIRM_EMAIL";
+}
+assert("delete requires matching confirm email", deleteConfirmBlocked);
+
+let selfDeleteBlocked = false;
+try {
+  deleteUserByAdmin(db, admin, admin.id, { confirmEmail: admin.email, mode: "hard" });
+} catch (e) {
+  selfDeleteBlocked = e.status === 400;
+}
+assert("cannot delete own admin account", selfDeleteBlocked);
+
 console.log("admin users regression passed");

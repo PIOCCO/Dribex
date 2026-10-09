@@ -42,10 +42,13 @@ This document records **what was inspected**, **what was fixed in-repo**, **what
 | File | Action | Reason |
 |------|--------|--------|
 | `apio/server/src/auth.js` | Modified | JWT `HS256` only for sign/verify |
-| `apio/server/src/adminAuth.js` | Modified | Admin JWT `HS256` only |
-| `apio/server/package.json` | Modified | `nodemailer@^10.0.16`, `test:admin-members-list` |
+| `apio/server/src/adminAuth.js` | Modified | Admin JWT `HS256`; session resolve clears cookie when role/status no longer valid |
+| `apio/server/src/middleware.js` | Modified | `resolveUserFromPublicToken`; clear cookie on suspended/deleted/invalid sessions |
+| `apio/server/package.json` | Modified | `nodemailer@^10.0.16`, offline + integration test scripts |
 | `apio/server/package-lock.json` | Modified | Lock nodemailer upgrade |
 | `apio/server/scripts/test-admin-members-list.js` | Added | Offline regression for list + `total` |
+| `apio/server/scripts/test-admin-users.js` | Extended | Self-delete, confirm-email, last-super-admin guards |
+| `apio/server/scripts/test-auth-session-offline.js` | Added | JWT role forgery, suspend, role-change session tests |
 | `apio/server/src/db.js` | Modified | Read `DATABASE_PATH` at `openDb()` time (tests + runtime consistency) |
 | `infra/onprem/scripts/audit-baseline.sh` | Added | Safe baseline runner for operators |
 | `docs/DRIBEX-FULL-PRODUCTION-AUDIT.md` | Added | This report |
@@ -60,7 +63,8 @@ Prior branch commits (same effort): APIO nginx/owner login, admin members list, 
 
 - JWT algorithm pinning (APIO public + admin cookies).
 - Nodemailer upgraded to patched 10.x line.
-- Existing controls retained: APIO `assertServerConfig()` (production exit unless `STRICT_CONFIG=false`), admin network allowlist, separate admin JWT + cookie, rate limits, Helmet CSP, bcrypt passwords, server-side admin authorization on `/api/admin/*`.
+- **Session binding to DB state:** public and admin attach middleware re-load user from SQLite on every request; JWT `role` claims cannot elevate privileges; suspended/demoted users are rejected and cookies cleared.
+- Existing controls retained: APIO `assertServerConfig()` (production exit unless `STRICT_CONFIG=false`), admin network allowlist, separate admin JWT + cookie (`aud: apio-admin`), rate limits, Helmet CSP, bcrypt (cost 12), server-side admin authorization on `/api/admin/*`, public listener 404 for `/api/admin/*`.
 - Dribex backend: extensive authz tests in tree (`test_admin_security`, `test_sellers_authz`, `test_ops_security`, …) — **execution depends on Postgres**.
 
 ---
@@ -78,6 +82,10 @@ Prior branch commits (same effort): APIO nginx/owner login, admin members list, 
 | Check | Result |
 |-------|--------|
 | APIO `test-admin-members-list.js` | **Passed** |
+| APIO `test-admin-users.js` | **Passed** (self-lockout, delete confirm, suspend) |
+| APIO `test-auth-session-offline.js` | **Passed** (JWT role forgery, suspend, admin demotion) |
+| APIO `test-email-verification.js`, `test-cookie-path.js` | **Passed** |
+| APIO live suite (`test-auth`, `test-authorization`, `test-security`, `test-client-security`, `test-admin-network`, `test-avatar-sync`, `test-e2e-readiness`) | **Passed** (108 assertions) with temp SQLite + `SMTP_TEST_MODE=capture` + `node src/migrate.js` bootstrap |
 | APIO `npm audit` (direct deps) | **Passed** after nodemailer bump; **moderate** remains on transitive `uuid` |
 | APIO `build:apio` | **Passed** (earlier on branch) |
 | Dribex `web` `npm run build` | **Passed** with `NEXT_PUBLIC_API_BASE_URL=https://api.dribex.ma` |

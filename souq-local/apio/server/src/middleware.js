@@ -73,20 +73,33 @@ export function clearAuthCookie(res) {
   });
 }
 
+/** Resolve current user from a public JWT (DB role/status win over JWT claims). */
+export function resolveUserFromPublicToken(db, token) {
+  if (!token) return { user: null, userRow: null, invalid: false };
+  try {
+    const payload = verifyToken(token);
+    const row = findUserById(db, payload.sub);
+    if (row && row.status === "ACTIVE") {
+      return { user: sanitizeUser(row), userRow: row, invalid: false };
+    }
+    return { user: null, userRow: null, invalid: true };
+  } catch {
+    return { user: null, userRow: null, invalid: true };
+  }
+}
+
 export function attachUser(db) {
   return (req, res, next) => {
     req.user = null;
+    req.userRow = null;
     const token = req.cookies?.[COOKIE_NAME] || bearerToken(req);
     if (!token) return next();
-    try {
-      const payload = verifyToken(token);
-      const row = findUserById(db, payload.sub);
-      if (row && row.status === "ACTIVE") {
-        req.user = sanitizeUser(row);
-        req.userRow = row;
-      }
-    } catch {
+    const session = resolveUserFromPublicToken(db, token);
+    if (session.invalid) {
       clearAuthCookie(res);
+    } else if (session.user) {
+      req.user = session.user;
+      req.userRow = session.userRow;
     }
     next();
   };

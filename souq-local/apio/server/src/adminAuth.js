@@ -60,21 +60,32 @@ export function clearAdminAuthCookie(res) {
   });
 }
 
+export function resolveAdminUserFromToken(db, token) {
+  if (!token) return { user: null, userRow: null, invalid: false };
+  try {
+    const payload = verifyAdminToken(token);
+    const row = findUserById(db, payload.sub);
+    if (row && row.status === "ACTIVE" && row.role === ROLES.SUPER_ADMIN) {
+      return { user: sanitizeUser(row), userRow: row, invalid: false };
+    }
+    return { user: null, userRow: null, invalid: true };
+  } catch {
+    return { user: null, userRow: null, invalid: true };
+  }
+}
+
 export function attachAdminUser(db) {
   return (req, res, next) => {
     req.user = null;
     req.userRow = null;
     const token = req.cookies?.[ADMIN_COOKIE_NAME];
     if (!token) return next();
-    try {
-      const payload = verifyAdminToken(token);
-      const row = findUserById(db, payload.sub);
-      if (row && row.status === "ACTIVE" && row.role === ROLES.SUPER_ADMIN) {
-        req.user = sanitizeUser(row);
-        req.userRow = row;
-      }
-    } catch {
+    const session = resolveAdminUserFromToken(db, token);
+    if (session.invalid) {
       clearAdminAuthCookie(res);
+    } else if (session.user) {
+      req.user = session.user;
+      req.userRow = session.userRow;
     }
     next();
   };
