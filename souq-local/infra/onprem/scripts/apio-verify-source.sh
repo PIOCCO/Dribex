@@ -5,7 +5,7 @@ APIO_ROOT="${APIO_ROOT:-$ROOT/../../apio}"
 missing=0
 for req in package.json package-lock.json server/package.json server/src/adminIndex.js server/src/adminUserRoutes.js \
   server/src/adminUsers.js server/src/adminApiRoutes.js admin/vite.config.ts admin/src/main.tsx \
-  src/components/admin/layout/AdminLayout.tsx src/pages/admin/AdminUsersPage.tsx; do
+  src/components/admin/layout/AdminLayout.tsx src/pages/admin/AdminUsersPage.tsx src/lib/api.ts; do
   if [[ ! -f "$APIO_ROOT/$req" ]]; then
     echo "MISSING: $APIO_ROOT/$req" >&2
     missing=1

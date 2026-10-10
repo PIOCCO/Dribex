@@ -42,6 +42,7 @@ OVERLAY_PATHS=(
   src/pages/AdminLoginPage.tsx
   src/i18n
   src/lib/useLocale.ts
+  src/lib/api.ts
   src/components/admin
   src/pages/admin
 )
@@ -91,7 +92,7 @@ copy_overlay_tree() {
   rm -rf "$to/admin/src"
   cp -a "$from/admin/src" "$to/admin/"
   for rel in admin/vite.config.ts server/src/security.js src/vite-env.d.ts src/index.css tailwind.config.js \
-    src/pages/AdminLoginPage.tsx src/i18n/index.ts src/i18n/fr.ts src/i18n/ar.ts src/lib/useLocale.ts; do
+    src/pages/AdminLoginPage.tsx src/i18n/index.ts src/i18n/fr.ts src/i18n/ar.ts src/lib/useLocale.ts src/lib/api.ts; do
     if [[ -f "$from/$rel" ]]; then
       mkdir -p "$to/$(dirname "$rel")"
       cp "$from/$rel" "$to/$rel"

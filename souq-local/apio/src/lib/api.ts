@@ -46,6 +46,16 @@ export interface ApiUser {
   createdAt?: string;
 }
 
+/** Result of `apiFetch` (error responses may include API `code` and conflict hints). */
+export type ApiFetchResult<T = unknown> = {
+  data?: T;
+  error?: string;
+  status: number;
+  code?: string;
+  existingRole?: string;
+  existingMemberId?: string;
+};
+
 async function parseJson(res: Response) {
   const text = await res.text();
   if (!text) return null;
@@ -59,14 +69,7 @@ async function parseJson(res: Response) {
 export async function apiFetch<T>(
   path: string,
   init: RequestInit = {},
-): Promise<{
-  data?: T;
-  error?: string;
-  status: number;
-  code?: string;
-  existingRole?: string;
-  existingMemberId?: string;
-}> {
+): Promise<ApiFetchResult<T>> {
   const root = apiRoot();
   if (apiUnreachable && !root && typeof window === "undefined") {
     return { error: "Network error", status: 0 };
